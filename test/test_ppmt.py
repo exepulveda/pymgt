@@ -23,6 +23,13 @@ def test_ppmt():
     for dim in range(ndim):
         assert_normality(y[:, dim])
 
+    # forward transform should return the same y
+
+    y_forward = t.transform(x)
+
+    np.testing.assert_array_almost_equal(y, y_forward)
+
+
 def test_jura_de():
     #xloc,yloc,long,lat,landuse,rock,Cd,Co,Cr,Cu,Ni,Pb,Zn
     x = np.loadtxt("../data/jura.csv", delimiter=' ', skiprows=1, usecols=[6, 7, 8, 9, 10, 11, 12]) 

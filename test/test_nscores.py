@@ -102,3 +102,57 @@ def test_normalscore_minmax(alpha=0.05):
 
     assert len(score_table_x) == sample_size + 2
     assert len(score_table_y) == sample_size + 2
+
+def test_marginal_transform():
+    ndim = 4
+    ndata = 1000
+
+    np.random.seed(1)
+
+    x = np.random.uniform(10.0, 20.0, size=(ndata, ndim))
+
+    t = MarginalGaussianTransform()
+
+    y, x_back = assert_reversibility(t, x)        
+
+    for dim in range(ndim):
+        assert_normality(y[:, dim])
+
+    # forward transform should return the same y
+
+    y_forward = t.transform(x)
+
+    np.testing.assert_array_almost_equal(y, y_forward)
+
+def test_marginal_state():
+    ndim = 10
+    ndata = 10000
+
+    np.random.seed(1)
+
+    x = np.random.uniform(10.0, 20.0, size=(ndata, ndim))
+
+    t1 = MarginalGaussianTransform()
+
+    y1 = t1.fit_transform(x)
+    t_state = t1.state
+
+    t2 = MarginalGaussianTransform()
+    t2.state = t_state
+    y2 = t2.transform(x)
+
+    np.testing.assert_array_almost_equal(y1, y2)
+
+def test_real_data():
+    x = np.loadtxt("../data/synthetic_minerals.csv", delimiter=',', skiprows=1, usecols=[9, 10, 11, 12, 13, 14, 15, 16]) 
+    
+    t1 = MarginalGaussianTransform()
+
+    y1 = t1.fit_transform(x)
+    t_state = t1.state
+
+    t2 = MarginalGaussianTransform()
+    t2.state = t_state
+    y2 = t2.transform(x)
+
+    np.testing.assert_array_almost_equal(y1, y2)
