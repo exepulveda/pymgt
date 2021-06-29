@@ -1,11 +1,11 @@
 # Python Multivariate Gaussian Transforms: pymgt
 
-An implementation of several useful multivariate Gaussian transforms (MVT)
+An implementation of several useful multivariate Gaussian transforms (MGT)
 in the context of geostatistics, but usable in many other contexts.
 
-Any MVT will be able to transform a multivariate data `x` into a new set of 
+Any MGT will be able to transform a multivariate data `x` into a new set of 
 uncorrelated factors `y` that follow a standard Gaussian distribution with unit covariance:
-`y` such as `y = MVT.transform(x) and x = MVT.inverse_transofrm(y)`.
+`y` such as `y = MGT.transform(x) and x = MGT.inverse_transofrm(y)`.
 
 ## Rotation based iterative Gaussianisation
 
