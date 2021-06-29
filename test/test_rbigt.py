@@ -4,7 +4,7 @@ from pymgt import *
 from test_utils import *
 
 def test_rbigt():
-    x = np.loadtxt("../data/synthetic_minerals.csv", delimiter=',', skiprows=1, usecols=[9, 10, 11, 12, 13, 14, 15, 16]) 
+    x = np.loadtxt("data/synthetic_minerals.csv", delimiter=',', skiprows=1, usecols=[9, 10, 11, 12, 13, 14, 15, 16]) 
     ndata, ndim = x.shape
 
     x_copy = np.copy(x)

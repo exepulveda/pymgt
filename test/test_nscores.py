@@ -144,7 +144,7 @@ def test_marginal_state():
     np.testing.assert_array_almost_equal(y1, y2)
 
 def test_real_data():
-    x = np.loadtxt("../data/synthetic_minerals.csv", delimiter=',', skiprows=1, usecols=[9, 10, 11, 12, 13, 14, 15, 16]) 
+    x = np.loadtxt("data/synthetic_minerals.csv", delimiter=',', skiprows=1, usecols=[9, 10, 11, 12, 13, 14, 15, 16]) 
     
     t1 = MarginalGaussianTransform()
 

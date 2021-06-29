@@ -32,7 +32,7 @@ def test_ppmt():
 
 def test_jura_de():
     #xloc,yloc,long,lat,landuse,rock,Cd,Co,Cr,Cu,Ni,Pb,Zn
-    x = np.loadtxt("../data/jura.csv", delimiter=' ', skiprows=1, usecols=[6, 7, 8, 9, 10, 11, 12]) 
+    x = np.loadtxt("data/jura.csv", delimiter=' ', skiprows=1, usecols=[6, 7, 8, 9, 10, 11, 12]) 
     ndata, ndim = x.shape        
 
     maxiters = 10
@@ -53,7 +53,7 @@ def test_jura_de():
         assert_normality(y[:, dim])
 
 def test_synthetic_minerals():
-    x = np.loadtxt("../data/synthetic_minerals.csv", delimiter=',', skiprows=1, usecols=[9, 10, 11, 12, 13, 14, 15, 16]) 
+    x = np.loadtxt("data/synthetic_minerals.csv", delimiter=',', skiprows=1, usecols=[9, 10, 11, 12, 13, 14, 15, 16]) 
     ndata, ndim = x.shape
 
     maxiters = 10

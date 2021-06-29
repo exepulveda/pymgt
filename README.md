@@ -88,7 +88,7 @@ The test suite relays on the *pytest* package. Install it if needed:
 ```python -m pip install pytest```
 
 To run the test suite, execute
-```cd test; pytest```
+```pytest```
 
 ## Acknowledgements
 
