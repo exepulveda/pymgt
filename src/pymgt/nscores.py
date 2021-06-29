@@ -342,16 +342,16 @@ class MarginalGaussianTransform(Transform):
         self.__ndim = None
 
     def _set_state(self, state):
-        self.__gaussian_table = state['gaussian_table']
-        self.__weights = state['weights']
-        self.__raw_tables = state['raw_tables']
+        self.__gaussian_table = np.copy(state['gaussian_table'])
+        self.__weights =  np.copy(state['weights'])
+        self.__raw_tables =  np.copy(state['raw_tables'])
         self.__ndim = state['ndim']
 
     def _get_state(self):
         return {
-            'gaussian_table': self.__gaussian_table,
-            'weights': self.__weights,
-            'raw_tables': self.__raw_tables,
+            'gaussian_table': self.__gaussian_table.copy(),
+            'weights': self.__weights.copy(),
+            'raw_tables': self.__raw_tables.copy(),
             'ndim': self.__ndim
         }
 
