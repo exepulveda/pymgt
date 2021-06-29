@@ -74,18 +74,16 @@ class RBIGTransform(Transform):
         self.maxiter = maxiter
         self.target = target
 
-        self.apply_first_marginal = True
-        self.apply_iterations = True
-
-        self.__state = None
+        self._apply_first_marginal = True
+        self._apply_iterations = True
+        self._apply_internal_rot = True
+        self._fitted = False
 
     def _get_rot_state(self):
-        rot_state = (self._rot.components_, self._rot.mixing_, self._rot.mean_, self._rot.whitening_)
-
-        return rot_state
+        return self._rot.__getstate__()
 
     def _set_rot_state(self, rot_state):
-        self._rot.components_, self._rot.mixing_, self._rot.mean_, self._rot.whitening_ = rot_state
+        self._rot.__setstate__(rot_state)
 
     def _set_state(self, state):
         self.__state = state
@@ -97,8 +95,6 @@ class RBIGTransform(Transform):
         ndata, ndim = x.shape
 
         y = x.copy()
-
-        #import pdb; pdb.set_trace()
 
         state1 = None
         state2_steps = None
@@ -119,7 +115,7 @@ class RBIGTransform(Transform):
 
 
         # step 1: Marginal Gaussianisation
-        if self.apply_first_marginal:
+        if self._apply_first_marginal:
             y = self._mvgt.fit_transform(y, weights=weights)
             state1 = self._mvgt.state
 
@@ -134,14 +130,17 @@ class RBIGTransform(Transform):
 
         # step 2: iterative rotation + marginal
         state2_steps = []
-        if self.apply_iterations:
+        if self._apply_iterations:
             for i in range(self.maxiter):
                 #rotate
-                y = self._rot.fit_transform(y)
-               
-                rot_state = self._get_rot_state()
+                if self._apply_internal_rot:
+                    y = self._rot.fit_transform(y)
+                    rot_state = self._get_rot_state()
+                else:
+                    rot_state = None
 
                 # marginal gaussianisation
+                #import pdb; pdb.set_trace()
                 y = self._mvgt.fit_transform(y)
 
                 #quit()
@@ -149,7 +148,7 @@ class RBIGTransform(Transform):
                 state2_steps += [(rot_state, self._mvgt.state)]
 
 
-                p, test_best = self._mdmetric.compute_test_best(y, self.__objective, self.target)
+                p, test_best = self._mdmetric.compute_test_best(y.copy(), self.__objective, self.target)
                 
                 s = self.metrics_text(y, extra=self.__objective)
                 if len(s) > 0: print("Iteration[%d] metrics: %s"%(i+1, s))
@@ -159,50 +158,57 @@ class RBIGTransform(Transform):
                     break
 
         self._state = (state1, state2_steps)
+        self._fitted = True
 
         return y
 
     def transform(self, x):
+        assert self._fitted
+
         state1, state2_steps = self._state
 
+        y = np.copy(x)
+
+        #import pdb; pdb.set_trace()
+
         # step 1: Marginal Gaussianisation
-        self._mvgt.state = state1
-        y = self._mvgt.transform(x)
+        if self._apply_first_marginal:
+            self._mvgt.state = state1
+            y = self._mvgt.transform(y)
 
-        # step 2: sphering
-        # self._sph.state = state2
-        # y = self._sph.transform(y)
+        # step 2: iterative rotation + marginal
+        if self._apply_iterations:
+            for _, state2_step in enumerate(state2_steps):
+                rot_state, self._mvgt.state = state2_step
+                if self._apply_internal_rot:
+                    self._set_rot_state(rot_state)
+                    y = self._rot.transform(y)
 
-        # step 3: iterative PP step
-        for state3_step in state3_steps:
-            direction, raw_table = state3_step
-
-            y = self._step_transform(y, direction, raw_table, gaussian_table)
-
-        # step 4: last marginal Gaussianisation no weights
-        self._mvgt.state = state4
-        y = self._mvgt.transform(y)
+                # marginal gaussianisation
+                y = self._mvgt.transform(y)
 
         return y
 
     def inverse_transform(self, y):
+        assert self._fitted
+
         x = np.copy(y)
 
         state1, state2_steps = self._state
 
         # step 2: iterative PP step
-        if self.apply_iterations:
+        if self._apply_iterations:
             for i, state2_step in enumerate(reversed(state2_steps)):
                 rot_state, self._mvgt.state = state2_step
-                #print(rot_state)
-
-                self._set_rot_state(rot_state)
 
                 x = self._mvgt.inverse_transform(x)
-                x = self._rot.inverse_transform(x)
+
+                if self._apply_internal_rot:
+                    self._set_rot_state(rot_state)
+                    x = self._rot.inverse_transform(x)
 
         # step 1: Marginal Gaussianisation
-        if self.apply_first_marginal:
+        if self._apply_first_marginal:
             self._mvgt.state = state1
             x = self._mvgt.inverse_transform(x)
 
