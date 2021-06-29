@@ -7,10 +7,14 @@ Any MGT will be able to transform a multivariate data `x` into a new set of
 uncorrelated factors `y` that follow a standard Gaussian distribution with unit covariance:
 `y` such as `y = MGT.transform(x) and x = MGT.inverse_transofrm(y)`.
 
+The implemented MGT are:
+- Rotation based iterative Gaussianisation (RBIG)
+- Projection pursuit multivariate transform (PPMT)
+
 ## Rotation based iterative Gaussianisation
 
-This transform uses the independent component analysis (ICA) to rotate the data
-and applies gaussianisation to marginals.
+This transform iteratively uses the independent component analysis (ICA) to rotate the data
+and applies gaussianisation to the marginals.
 
 Reference:
 Laparra, V., Camps-Valls, G., & Malo, J. (2011). Iterative gaussianization: From ICA to random rotations. IEEE Transactions on Neural Networks, 22(4), 537–549. https://doi.org/10.1109/TNN.2011.2106511
@@ -19,7 +23,7 @@ Laparra, V., Camps-Valls, G., & Malo, J. (2011). Iterative gaussianization: From
 
 This transform iteratively gaussianises one projection found by maximising the Friedman index for
 departure from Gaussian. It can use the original gradient descend optimisation method (fastest)
-or differential evolution (slower but more robust)
+or differential evolution (slower but more robust).
 
 Reference:
 Barnett, R. M., Manchuk, J. G., & Deutsch, C. V. (2013). Projection Pursuit Multivariate Transform. Mathematical Geosciences, 46(3), 337–359. https://doi.org/10.1007/s11004-013-9497-7
