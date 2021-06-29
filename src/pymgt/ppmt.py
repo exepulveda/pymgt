@@ -133,8 +133,8 @@ class PPMTransform(Transform):
         y = self._mvgt.transform(x)
 
         # step 2: sphering
-        # self._sph.state = state2
-        # y = self._sph.transform(y)
+        self._sph.state = state2
+        y = self._sph.transform(y)
 
         # step 3: iterative PP step
         for state3_step in state3_steps:
