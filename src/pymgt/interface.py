@@ -7,8 +7,10 @@ from abc import ABC, abstractmethod
 from typing import NewType, Tuple
 from numpy.typing import ArrayLike
 
+
 class AbstractMetric(ABC):
-    """Metric: abstract definition of any metric. A metric is a measure of departure from a standard
+    """Metric: abstract definition of any metric.
+    A metric is a measure of departure from a standard
     Guassian distribution of 1-D samples.
 
     Parameters
@@ -29,21 +31,28 @@ class AbstractMetric(ABC):
         """
 
     @abstractmethod
-    def compute_test_best(self, x: ArrayLike, target: float) -> Tuple[float, bool]:
+    def compute_test_best(self,
+                          x: ArrayLike,
+                          target: float) -> Tuple[float, bool]:
         """Compute the metric for `x` and test the `target`
         """
 
+
 MetricType = NewType('MetricType', AbstractMetric)
+
 
 class AbstractState(ABC):
     """AbstractState: abstract definition of any state used for serialising.
     """
 
+
 StateType = NewType('StateType', AbstractState)
 
+
 class AbstractTransform(ABC):
-    """AbstractTransform: abstract definition of any tranformer. A transformer is fitted
-    by using an array-like data and then it is able to convert any input `x` into a new
+    """AbstractTransform: abstract definition of any tranformer.
+    A transformer is fitted by using an array-like data and then
+    it is able to convert any input `x` into a new
     array-like `y`. The transform is perfectable invertible, i.e., x = g(f(x)),
     where f and g are the forward and inverse transform respectively.
     """
@@ -70,7 +79,8 @@ class AbstractTransform(ABC):
 
         Returns
         -------
-        y: array-like, same shape as `x`. The transformed values applied to `x`.
+        y: array-like, same shape as `x`.
+            The transformed values applied to `x`.
         """
 
     @abstractmethod
@@ -84,7 +94,8 @@ class AbstractTransform(ABC):
 
         Returns
         -------
-        y: array-like, same shape as `x`. The transformed values applied to `x`.
+        y: array-like, same shape as `x`.
+            The transformed values applied to `x`.
         """
 
     @abstractmethod
@@ -98,7 +109,9 @@ class AbstractTransform(ABC):
 
         Returns
         -------
-        x: array-like, same shape as `y`. The back transformed values applied to `y`.
+        x: array-like, same shape as `y`.
+            The back transformed values applied to `y`.
         """
+
 
 TransformType = NewType('TransformType', AbstractTransform)

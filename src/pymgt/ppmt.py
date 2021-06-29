@@ -14,12 +14,13 @@ from .ppmt_utils import find_next_best_direction_gd
 from .ppmt_utils import find_next_best_direction
 from .metrics import FRIEDMAN_METRIC
 
+
 class PPMTransform(Transform):
     """The original projection pursuit mutivariate transform (as closer as possible) with some
     improvements, such as a robust optimisation method, displaying metrics and serialisation.
 
     Paper:
-    Barnett, R. M., Manchuk, J. G., & Deutsch, C. V. (2016). 
+    Barnett, R. M., Manchuk, J. G., & Deutsch, C. V. (2016).
     The Projection-Pursuit Multivariate Transform for Improved Continuous Variable Modeling.
     Society of Petroleum Engineers, 1(December). https://doi.org/10.2118/184388-PA
     """
@@ -51,8 +52,6 @@ class PPMTransform(Transform):
         ndata, ndim = x.shape
 
         y = x.copy()
-
-        #import pdb; pdb.set_trace()
 
         state1 = None
         state2 = None

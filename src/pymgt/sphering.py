@@ -1,6 +1,6 @@
 """Module with the sphering functions
 """
-from typing import Dict, Optional
+from typing import Optional
 import numpy as np
 import scipy.linalg
 
@@ -9,12 +9,14 @@ from numpy.typing import ArrayLike
 from .transform import Transform
 from .interface import AbstractState
 
+
 class SpheringState(AbstractState):
     """The state of a sphering transform
     """
     def __init__(self, sphering_matrix: ArrayLike, means: Optional[ArrayLike]):
         self.sphering_matrix = sphering_matrix
         self.means = means
+
 
 class SpheringTransform(Transform):
     """SpheringTransform: Also called whitening. This Transform transforms an
@@ -63,16 +65,17 @@ class SpheringTransform(Transform):
         return self.transform(x)
 
     def fit(self, x):
-        #This function will sphere the data. This means the data will now have a
-        #mean of 0 and a covariance matrix of 1.
+        """This function will sphere the data. This means the data will now have a
+        mean of 0 and a covariance matrix of 1.
+        """
         if not self.__centered:
             muhat = np.mean(x, axis=0)
         else:
             muhat = None
 
-        #covariance matrix
+        # covariance matrix
         cov = np.cov(x, rowvar=False)
-        #eigenvalue/eigenvector decomposition
+        # eigenvalue/eigenvector decomposition
         D, V = np.linalg.eig(cov)
         Dinv = np.linalg.inv(np.diag(D))
         sq = scipy.linalg.sqrtm(Dinv)
@@ -100,7 +103,7 @@ class SpheringTransform(Transform):
         """
         S, muhat = self.__state.sphering_matrix, self.__state.means
 
-        #apply inverse of S
+        # apply inverse of S
         Sinv = np.linalg.inv(S)
         Xc = y@Sinv
 

@@ -10,6 +10,7 @@ from .ppmt_utils import friedman_index
 
 from scipy.stats import multivariate_normal
 
+
 class RBIGTransform(Transform):
     """Rotation Based Iterative Transform: This transform applies at each
     iteration a rotation transform followed by a marginal Gaussian transform.
@@ -36,7 +37,7 @@ class RBIGTransform(Transform):
 
     References
     ----------
-    Laparra, V., Camps-Valls, G., & Malo, J. (2011). Iterative gaussianization: From ICA to random rotations. 
+    Laparra, V., Camps-Valls, G., & Malo, J. (2011). Iterative gaussianization: From ICA to random rotations.
     IEEE Transactions on Neural Networks, 22(4), 537–549. https://doi.org/10.1109/TNN.2011.2106511
 
     Examples
@@ -89,7 +90,7 @@ class RBIGTransform(Transform):
         self.__state = state
 
     def _get_state(self):
-        return self.__state        
+        return self.__state
 
     def fit_transform(self, x, weights=None):
         ndata, ndim = x.shape
@@ -103,7 +104,6 @@ class RBIGTransform(Transform):
 
         warnings.simplefilter("ignore")
 
-
         imvg = multivariate_normal.rvs(mean=np.zeros(ndim), cov=np.eye(ndim), size=ndata)
         s = self.metrics_text(imvg, extra=self.__objective)
         print(f"Metrics applied to a standard {ndim}-dimensional Gaussian distribution of size={ndata}:\n{s}")
@@ -112,7 +112,6 @@ class RBIGTransform(Transform):
             self.target = self._mdmetric(x)
 
         print(f"Stopping at {self.maxiter} or target={self.target}")
-
 
         # step 1: Marginal Gaussianisation
         if self._apply_first_marginal:
@@ -124,15 +123,15 @@ class RBIGTransform(Transform):
                     print("%d marginal pi=%f"%(dim, friedman_index(y[:, dim])))
 
             p, test_best = self._mdmetric.compute_test_best(y, self.__objective, self.target)
-            
+
             s = self.metrics_text(y, extra=self.__objective)
-            if len(s) > 0: print("Iteration[0] metrics: %s"%s)                             
+            if len(s) > 0: print("Iteration[0] metrics: %s"%s)
 
         # step 2: iterative rotation + marginal
         state2_steps = []
         if self._apply_iterations:
             for i in range(self.maxiter):
-                #rotate
+                # rotate
                 if self._apply_internal_rot:
                     y = self._rot.fit_transform(y)
                     rot_state = self._get_rot_state()
@@ -140,16 +139,12 @@ class RBIGTransform(Transform):
                     rot_state = None
 
                 # marginal gaussianisation
-                #import pdb; pdb.set_trace()
                 y = self._mvgt.fit_transform(y)
-
-                #quit()
 
                 state2_steps += [(rot_state, self._mvgt.state)]
 
-
                 p, test_best = self._mdmetric.compute_test_best(y.copy(), self.__objective, self.target)
-                
+
                 s = self.metrics_text(y, extra=self.__objective)
                 if len(s) > 0: print("Iteration[%d] metrics: %s"%(i+1, s))
 
@@ -168,8 +163,6 @@ class RBIGTransform(Transform):
         state1, state2_steps = self._state
 
         y = np.copy(x)
-
-        #import pdb; pdb.set_trace()
 
         # step 1: Marginal Gaussianisation
         if self._apply_first_marginal:
@@ -213,4 +206,3 @@ class RBIGTransform(Transform):
             x = self._mvgt.inverse_transform(x)
 
         return x
-

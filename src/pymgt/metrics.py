@@ -8,6 +8,7 @@ from .tindex import anderson_index
 from .tindex import ks_index
 from .ppmt_utils import friedman_index
 
+
 class Metric(AbstractMetric):
     """This class implement a metric based on a gaussianity index or test
     """
@@ -32,7 +33,9 @@ class Metric(AbstractMetric):
         return self.__index_func(x)
 
     def compute_test_best(self, x, target):
-        """Compute the test and return if the result is better than the `target`"""
+        """Compute the test and return if the result is better
+        than the `target`"""
+
         index = self(x)
         if self.__maximising:
             test = index > target
@@ -40,6 +43,7 @@ class Metric(AbstractMetric):
             test = index < target
 
         return index, test
+
 
 FRIEDMAN_METRIC = Metric("friedman", friedman_index, False)
 KS_METRIC = Metric("kstest", ks_index, False)

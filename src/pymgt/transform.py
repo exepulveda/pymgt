@@ -20,7 +20,8 @@ class MDMetric:
 
     def init_directions(self, x, force=False):
         """Initialise the directions according to the dimension of `x`.
-        `force` will initialise the directions even if they are already initialised
+        `force` will initialise the directions even if they are already
+        initialised
         """
         if force or self.__directions is None:
             _, ndim = x.shape
@@ -54,9 +55,10 @@ class MDMetric:
 
 class Transform(AbstractTransform):
     """Transform: abstract definition of any transform. A transformer is fitted
-    by using an array-like data and then it is able to convert any input `x` into a new
-    array-like `y`. The transform is perfectable invertible, i.e., x = g(f(x)),
-    where f and g are the forward and inverse transform respectively.
+    by using an array-like data and then it is able to convert any input `x`
+    into a new array-like `y`. The transform is perfectable invertible, i.e.,
+    x = g(f(x)), where f and g are the forward and
+    inverse transform respectively.
 
     Attributes
     ----------
@@ -104,7 +106,7 @@ class Transform(AbstractTransform):
         """
         if self.__metrics is None and extra is None:
             return None
-        
+
         ret = {}
         if self.__metrics is not None:
             for m in self.__metrics:
