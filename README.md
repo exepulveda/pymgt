@@ -26,7 +26,7 @@ Barnett, R. M., Manchuk, J. G., & Deutsch, C. V. (2013). Projection Pursuit Mult
 
 ## How to install
 
-With pip, just execute: `pip install pymgt`
+With pip, just execute: `python -m pip install pymgt`
 
 ## Simple use
 
