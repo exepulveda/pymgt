@@ -157,6 +157,7 @@ class Transform(AbstractTransform):
         """Set the transform state
         """
         self._state = state
+        self._fitted = True # if the state is set, we assume the model is now fitted
 
     def fit(self, x):
         """"Fit the transform. Uses by default `fit_tranform`

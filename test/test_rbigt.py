@@ -3,6 +3,36 @@ import numpy as np
 from pymgt import *
 from test_utils import *
 
+def test_state():
+    ndim = 4
+    ndata = 1000
+    maxiters = 10
+
+    np.random.seed(1)
+
+    x = np.random.uniform(10.0, 20.0, size=(ndata, ndim))
+    pidist = mv_index_distribution(ndata, ndim, friedman_index, ndir=1000)
+    target = np.median(pidist)
+
+    metric = FRIEDMAN_METRIC
+    
+    print(f"target for ({ndata},{ndim})={target}")
+
+    t1 = RBIGTransform(objective=metric, maxiter=maxiters, target=target)
+
+    t1.fit(x)
+    y1 = t1.transform(x)
+
+    state = t1.state
+    assert state is not None
+
+    t2 = RBIGTransform(objective=metric, maxiter=maxiters, target=target)
+    t2.state = state
+    y2 = t2.transform(x)
+
+    np.testing.assert_array_almost_equal(y1, y2)
+
+
 def test_rbigt():
     x = np.loadtxt("data/synthetic_minerals.csv", delimiter=',', skiprows=1, usecols=[9, 10, 11, 12, 13, 14, 15, 16]) 
     ndata, ndim = x.shape

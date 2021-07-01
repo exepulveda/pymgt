@@ -2,14 +2,34 @@ import warnings
 import numpy as np
 import sklearn.decomposition
 
+from typing import List, Dict, Optional
 from .transform import Transform
 from .nscores import MarginalGaussianTransform
+from .nscores import MarginalGaussianState
+from .sphering import SpheringState
 from .metrics import FRIEDMAN_METRIC
-
+from .interface import AbstractState
+from .interface import Vector
+from .interface import Array2D
 from .ppmt_utils import friedman_index
 
 from scipy.stats import multivariate_normal
 
+class RBIGStepState(AbstractState):
+    """The state of a RBIG step
+    """
+    def __init__(self, rotation: Dict, marginal: MarginalGaussianState):
+        self.rotation = rotation
+        self.marginal = marginal
+
+
+class RBIGState(AbstractState):
+    """The state of a RBIG transform
+    """
+    def __init__(self, marginal: MarginalGaussianState, 
+                       iteration_steps: List[RBIGStepState]):
+        self.marginal = marginal
+        self.iteration_steps = iteration_steps
 
 class RBIGTransform(Transform):
     """Rotation Based Iterative Transform: This transform applies at each
@@ -71,28 +91,20 @@ class RBIGTransform(Transform):
         # define the iteration sequence which is (a) Rotation followed by (b) marginal Gaussianisation
         self._rot = sklearn.decomposition.FastICA(whiten=True, **kargs)
         self._mvgt = MarginalGaussianTransform()
-        self._state = None
         self.maxiter = maxiter
         self.target = target
 
         self._apply_first_marginal = True
         self._apply_iterations = True
         self._apply_internal_rot = True
-        self._fitted = False
 
-    def _get_rot_state(self):
+    def _get_rot_state(self) -> Dict:
         return self._rot.__getstate__()
 
-    def _set_rot_state(self, rot_state):
+    def _set_rot_state(self, rot_state: Dict):
         self._rot.__setstate__(rot_state)
 
-    def _set_state(self, state):
-        self.__state = state
-
-    def _get_state(self):
-        return self.__state
-
-    def fit_transform(self, x, weights=None):
+    def fit_transform(self, x: Array2D, weights: Optional[Vector]=None) -> Array2D:
         ndata, ndim = x.shape
 
         y = x.copy()
@@ -141,7 +153,7 @@ class RBIGTransform(Transform):
                 # marginal gaussianisation
                 y = self._mvgt.fit_transform(y)
 
-                state2_steps += [(rot_state, self._mvgt.state)]
+                state2_steps += [RBIGStepState(rot_state, self._mvgt.state)]
 
                 p, test_best = self._mdmetric.compute_test_best(y.copy(), self.__objective, self.target)
 
@@ -152,57 +164,53 @@ class RBIGTransform(Transform):
                 if test_best:
                     break
 
-        self._state = (state1, state2_steps)
+        self.state = RBIGState(state1, state2_steps)
+
         self._fitted = True
 
         return y
 
-    def transform(self, x):
+    def transform(self, x: Array2D) -> Array2D:
         assert self._fitted
-
-        state1, state2_steps = self._state
 
         y = np.copy(x)
 
         # step 1: Marginal Gaussianisation
         if self._apply_first_marginal:
-            self._mvgt.state = state1
+            self._mvgt.state = self.state.marginal
             y = self._mvgt.transform(y)
 
         # step 2: iterative rotation + marginal
         if self._apply_iterations:
-            for _, state2_step in enumerate(state2_steps):
-                rot_state, self._mvgt.state = state2_step
+            for _, state2_step in enumerate(self.state.iteration_steps):
                 if self._apply_internal_rot:
-                    self._set_rot_state(rot_state)
+                    self._set_rot_state(state2_step.rotation)
                     y = self._rot.transform(y)
 
                 # marginal gaussianisation
+                self._mvgt.state = state2_step.marginal
                 y = self._mvgt.transform(y)
 
         return y
 
-    def inverse_transform(self, y):
+    def inverse_transform(self, y: Array2D) -> Array2D:
         assert self._fitted
 
         x = np.copy(y)
 
-        state1, state2_steps = self._state
-
-        # step 2: iterative PP step
+        # step 2: iterative RBIG step
         if self._apply_iterations:
-            for i, state2_step in enumerate(reversed(state2_steps)):
-                rot_state, self._mvgt.state = state2_step
-
+            for _, state2_step in enumerate(reversed(self.state.iteration_steps)):
+                self._mvgt.state = state2_step.marginal
                 x = self._mvgt.inverse_transform(x)
 
                 if self._apply_internal_rot:
-                    self._set_rot_state(rot_state)
+                    self._set_rot_state(state2_step.rotation)
                     x = self._rot.inverse_transform(x)
 
         # step 1: Marginal Gaussianisation
         if self._apply_first_marginal:
-            self._mvgt.state = state1
+            self._mvgt.state = self.state.marginal
             x = self._mvgt.inverse_transform(x)
 
         return x

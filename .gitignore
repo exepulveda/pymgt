@@ -1,3 +1,4 @@
 build/*
 dist/*
 test/__pycache__
+src/pymgt/__pycache__
