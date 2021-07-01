@@ -6,6 +6,7 @@ import numpy as np
 
 from typing import Callable, Optional
 from .interface import Array2D
+from .interface import Vector
 
 def generate_directions(dim: int, n: int = 100) -> Array2D:
     """Generate `n` directions of dimension `dim`
@@ -59,17 +60,17 @@ class Projectable:
 
 
 # normality tests
-def jarque_bera_index(x: Array2D) -> float:
+def jarque_bera_index(x: Vector) -> float:
     return scipy.stats.jarque_bera(x)[0]
 
 
-def shapiro_index(x) -> float:
+def shapiro_index(x: Vector) -> float:
     return scipy.stats.shapiro(x)[0]
 
 
-def anderson_index(x: Array2D) -> float:
+def anderson_index(x: Vector) -> float:
     return scipy.stats.anderson(x)[0]
 
 
-def ks_index(x: Array2D) -> float:
+def ks_index(x: Vector) -> float:
     return scipy.stats.kstest(x, "norm")[0]
