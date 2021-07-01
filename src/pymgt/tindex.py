@@ -5,10 +5,9 @@ import scipy.stats
 import numpy as np
 
 from typing import Callable, Optional
-from numpy.typing import ArrayLike
+from .interface import Array2D
 
-
-def generate_directions(dim: int, n: int = 100) -> ArrayLike:
+def generate_directions(dim: int, n: int = 100) -> Array2D:
     """Generate `n` directions of dimension `dim`
     uniformely distributed on the n-sphere
     """
@@ -24,7 +23,7 @@ def generate_directions(dim: int, n: int = 100) -> ArrayLike:
     return v
 
 
-def projection_index(x: ArrayLike,
+def projection_index(x: Array2D,
                      index_func: Callable,
                      nprojections: Optional[int] = 100,
                      reduce: Optional[Callable] = np.mean) -> float:
@@ -53,14 +52,14 @@ class Projectable:
         self.__nprojections = nprojections
         self.__reduce = reduce
 
-    def __call__(self, x: ArrayLike) -> float:
+    def __call__(self, x: Array2D) -> float:
         return projection_index(x,
                                 self.__func, nprojections=self.__nprojections,
                                 reduce=self.__reduce)
 
 
 # normality tests
-def jarque_bera_index(x: ArrayLike) -> float:
+def jarque_bera_index(x: Array2D) -> float:
     return scipy.stats.jarque_bera(x)[0]
 
 
@@ -68,9 +67,9 @@ def shapiro_index(x) -> float:
     return scipy.stats.shapiro(x)[0]
 
 
-def anderson_index(x: ArrayLike) -> float:
+def anderson_index(x: Array2D) -> float:
     return scipy.stats.anderson(x)[0]
 
 
-def ks_index(x: ArrayLike) -> float:
+def ks_index(x: Array2D) -> float:
     return scipy.stats.kstest(x, "norm")[0]

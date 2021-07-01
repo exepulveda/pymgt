@@ -1,6 +1,35 @@
 [build-system]
+requires = ["flit_core >=2,<4"]
+build-backend = "flit_core.buildapi"
+
+[tool.flit.metadata]
+module = "pymgt"
+author = "Exequiel Sepulveda"
+author-email = "esepulveda@protonmail.com"
+home-page = "https://github.com/exepulveda/pymgt"
+license = "MIT"
+description-file = "README.md"
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3.7",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3 :: Only",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    ]
+
 requires = [
-    "setuptools>=42",
-    "wheel"
+    "numpy>=1.19",
+    "scipy",
+    "scikit-learn",
+    "typing_extensions; python_version < '3.8'"
 ]
-build-backend = "setuptools.build_meta"
+
+[tool.flit.metadata.requires-extra]
+test = [
+    "pytest >=4.4.0,<5.4.0",
+    "pytest-cov >=2.10.0,<3.0.0",
+    "coverage >=5.2,<6.0",
+]

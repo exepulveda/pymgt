@@ -90,6 +90,7 @@ class Transform(AbstractTransform):
         self.__name = kargs.get('name', 'unnamed')
         self.__trace = kargs.get("trace", False)
         self.__metrics = kargs.get("metrics", None)
+        self.__state = None
 
         self._fitted = False
         self._mdmetric = MDMetric(kargs.get("reduce_func", np.mean), kargs.get("ndir", 100))

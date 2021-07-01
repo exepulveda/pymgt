@@ -4,8 +4,10 @@ AbstractTransform is for defining multivariate Gaussian transforms
 """
 
 from abc import ABC, abstractmethod
-from typing import NewType, Tuple
-from numpy.typing import ArrayLike
+from typing import NewType, Tuple, List
+
+Vector = List[float]
+Array2D = List[Vector]
 
 
 class AbstractMetric(ABC):
@@ -26,13 +28,13 @@ class AbstractMetric(ABC):
     """
 
     @abstractmethod
-    def __call__(self, x: ArrayLike) -> float:
+    def __call__(self, x: Array2D) -> float:
         """Callable interface
         """
 
     @abstractmethod
     def compute_test_best(self,
-                          x: ArrayLike,
+                          x: Array2D,
                           target: float) -> Tuple[float, bool]:
         """Compute the metric for `x` and test the `target`
         """
@@ -68,7 +70,7 @@ class AbstractTransform(ABC):
         """
 
     @abstractmethod
-    def fit_transform(self, x: ArrayLike) -> ArrayLike:
+    def fit_transform(self, x: Array2D) -> Array2D:
         """"Fit and apply the transform. It should be equivalent to `fit`
         followed bt `transform`.
 
@@ -84,7 +86,7 @@ class AbstractTransform(ABC):
         """
 
     @abstractmethod
-    def transform(self, x: ArrayLike) -> ArrayLike:
+    def transform(self, x: Array2D) -> Array2D:
         """"Apply the fitted transform to `x`
 
         Parameters
@@ -99,7 +101,7 @@ class AbstractTransform(ABC):
         """
 
     @abstractmethod
-    def inverse_transform(self, y: ArrayLike) -> ArrayLike:
+    def inverse_transform(self, y: Array2D) -> Array2D:
         """"Apply the inverse transform to `y`
 
         Parameters

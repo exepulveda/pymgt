@@ -91,8 +91,8 @@ class PPMTransform(Transform):
         state3_steps = []
         if self._apply_iterations:
             for i in range(self.maxiter):
-                y, direction, pi, table = self._step_fit_transform(y, gaussian_table, False)
-                rtable, gtable = table
+                y, direction, pi, uvgstate = self._step_fit_transform(y, gaussian_table, False)
+                rtable, gtable = uvgstate.raw_table, uvgstate.gaussian_table
                 if gaussian_table is None:
                     gaussian_table = gtable
 
@@ -232,7 +232,8 @@ class PPMTransform(Transform):
         # by building the bijection relationship with gaussian_table
         xp = z[:, 0]
 
-        self._ugt.state = (raw_table, gaussian_table)
+        self._ugt.state.raw_table = raw_table
+        self._ugt.state.gaussian_table = gaussian_table
 
         nscores = self._ugt.transform(xp)
 
@@ -256,7 +257,9 @@ class PPMTransform(Transform):
         # by building the bijection relationship with raw_table
         yp = z[:, 0]
 
-        self._ugt.state = (raw_table, gaussian_table)
+        self._ugt.state.raw_table = raw_table
+        self._ugt.state.gaussian_table = gaussian_table
+
         rawscores = self._ugt.inverse_transform(yp)
 
         #print(np.min(rawscores), np.mean(rawscores), np.max(rawscores))

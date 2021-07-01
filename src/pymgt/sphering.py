@@ -4,16 +4,14 @@ from typing import Optional
 import numpy as np
 import scipy.linalg
 
-from numpy.typing import ArrayLike
-
 from .transform import Transform
 from .interface import AbstractState
-
+from .interface import Array2D
 
 class SpheringState(AbstractState):
     """The state of a sphering transform
     """
-    def __init__(self, sphering_matrix: ArrayLike, means: Optional[ArrayLike]):
+    def __init__(self, sphering_matrix: Array2D, means: Optional[Array2D]):
         self.sphering_matrix = sphering_matrix
         self.means = means
 

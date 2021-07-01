@@ -1,3 +1,8 @@
+"""
+Package pymgt import most used costants, classes and functions
+"""
+__version__ = "0.1.1"
+
 from .transform import Transform
 from .transform import MDMetric
 

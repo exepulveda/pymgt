@@ -3,15 +3,16 @@ from typing import Union, Type, Optional
 import numpy as np
 import scipy.stats
 
-from numpy.typing import ArrayLike
-
 from .transform import Transform
+from .interface import AbstractState
+from .interface import StateType
+from .interface import Array2D
 
 
 def univariate_generic_transform(
-        x: ArrayLike,
-        dist: Union[ArrayLike, Type[scipy.stats.rv_continuous]],
-        weights: Optional[ArrayLike] = None,
+        x: Array2D,
+        dist: Union[Array2D, Type[scipy.stats.rv_continuous]],
+        weights: Optional[Array2D] = None,
         xminval: Optional[float] = None,
         xmaxval: Optional[float] = None,
         yminval: Optional[float] = None,
@@ -170,6 +171,12 @@ def univariate_nscore(x,
     )
 
 
+class UnivariateGaussianState(AbstractState):
+    def __init__(self, raw_table, gaussian_table):
+        self.raw_table = raw_table
+        self.gaussian_table = gaussian_table
+
+
 class UnivariateGaussianTransform(Transform):
     """UnivariateGaussianTransform: This Transform applies
     the NormalScore transform which construct a bijection between
@@ -230,21 +237,17 @@ class UnivariateGaussianTransform(Transform):
         self._xmaxval = xmaxval
         self._yminval = yminval
         self._ymaxval = ymaxval
-        self._raw_table = None
-        self._gaussian_table = None
+        self._state = None
 
     def _set_state(self, state):
-        self._raw_table, self._gaussian_table = state
+        self._state = state
 
     def _get_state(self):
-        return self._raw_table, self._gaussian_table
+        return self._state
 
     def fit_transform(self, x, weights=None, gaussian_table=None):
         x = np.asarray(x)
         assert len(x.shape) == 1
-
-        if gaussian_table is not None:
-            self._gaussian_table = gaussian_table
 
         # create the transform table and transform `x`
         y, transform_table = univariate_nscore(
@@ -254,11 +257,12 @@ class UnivariateGaussianTransform(Transform):
             xmaxval=self._xmaxval,
             yminval=self._yminval,
             ymaxval=self._ymaxval,
-            gaussian_table=self._gaussian_table
+            gaussian_table=gaussian_table
         )
 
         # update state
-        self._raw_table, self._gaussian_table, _ = transform_table
+        raw_table, gaussian_table, _ = transform_table
+        self._state = UnivariateGaussianState(raw_table, gaussian_table)
 
         return y
 
@@ -270,7 +274,7 @@ class UnivariateGaussianTransform(Transform):
         assert len(x.shape) == 1
 
         # interpolation from original space to Gaussian space
-        y = np.interp(x, self._raw_table, self._gaussian_table)
+        y = np.interp(x, self._state.raw_table, self._state.gaussian_table)
 
         return y
 
@@ -279,7 +283,7 @@ class UnivariateGaussianTransform(Transform):
         assert len(y.shape) == 1
 
         # interpolation from Gaussian space to original space
-        x = np.interp(y, self._gaussian_table, self._raw_table)
+        x = np.interp(y, self._state.gaussian_table, self._state.raw_table)
 
         return x
 
@@ -418,7 +422,7 @@ class MarginalGaussianTransform(Transform):
     def fit(self, x, weights=None):
         self.fit_transform(x, weights=weights)
 
-    def transform(self, x: ArrayLike):
+    def transform(self, x: Array2D):
         _, ndim = x.shape
         assert ndim == self.__ndim
 
@@ -429,7 +433,7 @@ class MarginalGaussianTransform(Transform):
 
         return y
 
-    def inverse_transform(self, y: ArrayLike):
+    def inverse_transform(self, y: Array2D):
         _, ndim = y.shape
         assert ndim == self.__ndim
 

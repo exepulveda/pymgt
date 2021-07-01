@@ -1,5 +1,6 @@
 # Current tasks
-
-[ ] Implement HDF5 serialiser
-[ ] Implement OMF serialiser
+[ ] Callback
+[ ] Custom serialisers
+  [ ] Implement HDF5 serialiser
+  [ ] Implement OMF serialiser
   
