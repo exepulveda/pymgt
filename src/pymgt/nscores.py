@@ -237,13 +237,6 @@ class UnivariateGaussianTransform(Transform):
         self._xmaxval = xmaxval
         self._yminval = yminval
         self._ymaxval = ymaxval
-        self._state = None
-
-    def _set_state(self, state):
-        self._state = state
-
-    def _get_state(self):
-        return self._state
 
     def fit_transform(self, x, weights=None, gaussian_table=None):
         x = np.asarray(x)
@@ -262,7 +255,7 @@ class UnivariateGaussianTransform(Transform):
 
         # update state
         raw_table, gaussian_table, _ = transform_table
-        self._state = UnivariateGaussianState(raw_table, gaussian_table)
+        self.state = UnivariateGaussianState(raw_table, gaussian_table)
 
         return y
 
@@ -274,7 +267,7 @@ class UnivariateGaussianTransform(Transform):
         assert len(x.shape) == 1
 
         # interpolation from original space to Gaussian space
-        y = np.interp(x, self._state.raw_table, self._state.gaussian_table)
+        y = np.interp(x, self.state.raw_table, self.state.gaussian_table)
 
         return y
 
@@ -283,15 +276,30 @@ class UnivariateGaussianTransform(Transform):
         assert len(y.shape) == 1
 
         # interpolation from Gaussian space to original space
-        x = np.interp(y, self._state.gaussian_table, self._state.raw_table)
+        x = np.interp(y, self.state.gaussian_table, self.state.raw_table)
 
         return x
 
     def to_hdf5(self, h5d):
-        h5d.create_dataset("transform_table", data=self.__transform_table)
+        h5d.create_dataset("raw_table", data=self.state.raw_table)
+        h5d.create_dataset("gaussian_table", data=self.state.gaussian_table)
 
     def from_hdf5(self, h5d):
-        self.__transform_table = np.array(h5d["transform_table"])
+        self.state.raw_table = np.array(h5d["raw_table"])
+        self.state.gaussian_table = np.array(h5d["gaussian_table"])
+
+
+class MarginalGaussianState(AbstractState):
+    """The state of a MarginalGaussianTransform
+    """
+    def __init__(self, raw_tables, gaussian_table, weights, ndim):
+        assert raw_tables is not None
+        assert gaussian_table is not None
+
+        self.gaussian_table = gaussian_table
+        self.weights = weights
+        self.raw_tables = raw_tables
+        self.ndim = ndim
 
 
 class MarginalGaussianTransform(Transform):
@@ -359,29 +367,8 @@ class MarginalGaussianTransform(Transform):
         self.__yminval = yminval
         self.__ymaxval = ymaxval
 
-        self.__gaussian_table = None
-        self.__weights = None
-        self.__raw_tables = None
-        self.__ndim = None
-
-    def _set_state(self, state):
-        self.__gaussian_table = np.copy(state['gaussian_table'])
-        self.__weights = np.copy(state['weights'])
-        self.__raw_tables = np.copy(state['raw_tables'])
-        self.__ndim = state['ndim']
-
-    def _get_state(self):
-        return {
-            'gaussian_table': self.__gaussian_table.copy(),
-            'weights': self.__weights.copy(),
-            'raw_tables': self.__raw_tables.copy(),
-            'ndim': self.__ndim
-        }
-
     def fit_transform(self, x, weights=None):
         ndata, ndim = x.shape
-
-        self.__ndim = ndim
 
         y = np.empty_like(x)
 
@@ -398,24 +385,23 @@ class MarginalGaussianTransform(Transform):
         # we can reuse the second part of the transform_table from variable 1
         raw_table, gaussian_table, weights = transform_table_1
 
-        self.__raw_tables = np.empty((ndata, self.__ndim))
-        self.__raw_tables[:, 0] = raw_table
-
-        self.__gaussian_table = gaussian_table
-        self.__weights = weights
+        raw_tables = np.empty((ndata, ndim))
+        raw_tables[:, 0] = raw_table
 
         for dim in range(1, ndim):
             y[:, dim], transform_table_ = univariate_nscore(
                 x[:, dim],
-                weights=self.__weights,
+                weights=weights,
                 xminval=None if self.__xminval is None else self.__xminval[dim],
                 xmaxval=None if self.__xmaxval is None else self.__xmaxval[dim],
                 yminval=None if self.__yminval is None else self.__yminval[dim],
                 ymaxval=None if self.__ymaxval is None else self.__ymaxval[dim],
-                gaussian_table=self.__gaussian_table
+                gaussian_table=gaussian_table
             )
 
-            self.__raw_tables[:, dim] = transform_table_[0]
+            raw_tables[:, dim] = transform_table_[0]
+
+        self.state = MarginalGaussianState(raw_tables, gaussian_table, weights, ndim)
 
         return y
 
@@ -424,37 +410,22 @@ class MarginalGaussianTransform(Transform):
 
     def transform(self, x: Array2D):
         _, ndim = x.shape
-        assert ndim == self.__ndim
+        assert ndim == self.state.ndim
 
         y = np.empty_like(x)
 
         for dim in range(ndim):
-            y[:, dim] = np.interp(x[:, dim], self.__raw_tables[:, dim], self.__gaussian_table)
+            y[:, dim] = np.interp(x[:, dim], self.state.raw_tables[:, dim], self.state.gaussian_table)
 
         return y
 
     def inverse_transform(self, y: Array2D):
         _, ndim = y.shape
-        assert ndim == self.__ndim
+        assert ndim == self.state.ndim
 
         x = np.empty_like(y)
 
         for dim in range(ndim):
-            x[:, dim] = np.interp(y[:, dim], self.__gaussian_table, self.__raw_tables[:, dim])
+            x[:, dim] = np.interp(y[:, dim], self.state.gaussian_table, self.state.raw_tables[:, dim])
 
         return x
-
-    def state_to_dict(self, state=None):
-        if state is not None:
-            st = np.asarray(state)
-        else:
-            st = self.__transform_table
-
-        ret = {
-            "transform_table": st.tolist()
-        }
-
-        return ret
-
-    def dict_to_state(self, content):
-        self.__transform_table = np.asarray(content["transform_table"])

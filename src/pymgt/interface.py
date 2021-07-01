@@ -60,16 +60,6 @@ class AbstractTransform(ABC):
     """
 
     @abstractmethod
-    def _set_state(self, state: StateType):
-        """Set the internal state
-        """
-
-    @abstractmethod
-    def _get_state(self) -> StateType:
-        """Return the internal state
-        """
-
-    @abstractmethod
     def fit_transform(self, x: Array2D) -> Array2D:
         """"Fit and apply the transform. It should be equivalent to `fit`
         followed bt `transform`.

@@ -54,7 +54,7 @@ class MDMetric:
 
 
 class Transform(AbstractTransform):
-    """Transform: abstract definition of any transform. A transformer is fitted
+    """Transform: still abstract implementation of any transform. A transformer is fitted
     by using an array-like data and then it is able to convert any input `x`
     into a new array-like `y`. The transform is perfectable invertible, i.e.,
     x = g(f(x)), where f and g are the forward and
@@ -90,7 +90,7 @@ class Transform(AbstractTransform):
         self.__name = kargs.get('name', 'unnamed')
         self.__trace = kargs.get("trace", False)
         self.__metrics = kargs.get("metrics", None)
-        self.__state = None
+        self._state = None
 
         self._fitted = False
         self._mdmetric = MDMetric(kargs.get("reduce_func", np.mean), kargs.get("ndir", 100))
@@ -150,13 +150,13 @@ class Transform(AbstractTransform):
     def state(self):
         """Get the transform state
         """
-        return self._get_state()
+        return self._state
 
     @state.setter
     def state(self, state):
         """Set the transform state
         """
-        self._set_state(state)
+        self._state = state
 
     def fit(self, x):
         """"Fit the transform. Uses by default `fit_tranform`
@@ -174,13 +174,3 @@ class Transform(AbstractTransform):
 
     def from_hdf5(self, h5fd, h5group="/"):
         pass
-
-    @abstractmethod
-    def _set_state(self, state):
-        """Set the transform state (internal method for derived classes)
-        """
-
-    @abstractmethod
-    def _get_state(self):
-        """Get the transform state (internal method for derived classes)
-        """

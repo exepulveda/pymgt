@@ -50,13 +50,7 @@ class SpheringTransform(Transform):
         super(SpheringTransform, self).__init__(**kargs)
 
         self.__centered = kargs.get("centered", False)
-        self.__state = None
-
-    def _set_state(self, state: SpheringState):
-        self.__state = state
-
-    def _get_state(self) -> SpheringState:
-        return self.__state
+        self._state = None
 
     def fit_transform(self, x):
         self.fit(x)
@@ -80,12 +74,12 @@ class SpheringTransform(Transform):
 
         S = V@(sq@V.T)
 
-        self.__state = SpheringState(S, muhat)
+        self._state = SpheringState(S, muhat)
 
     def transform(self, x):
         """Apply to `x` the forward sphering using the `state`
         """
-        S, muhat = self.__state.sphering_matrix, self.__state.means
+        S, muhat = self._state.sphering_matrix, self._state.means
 
         if muhat is not None:
             Xc = x - muhat
@@ -99,7 +93,7 @@ class SpheringTransform(Transform):
     def inverse_transform(self, y):
         """Apply to `y` the backward sphering using the `state`
         """
-        S, muhat = self.__state.sphering_matrix, self.__state.means
+        S, muhat = self._state.sphering_matrix, self._state.means
 
         # apply inverse of S
         Sinv = np.linalg.inv(S)
@@ -111,7 +105,7 @@ class SpheringTransform(Transform):
         return Xc
 
     def to_hdf5(self, h5d):
-        S, xhat = self.__state
+        S, xhat = self._state
 
         h5d.create_dataset("S", data=S)
         h5d.create_dataset("xhat", data=xhat)
@@ -119,4 +113,4 @@ class SpheringTransform(Transform):
     def from_hdf5(self, h5d):
         S = np.array(h5d["S"])
         xhat = np.array(h5d["xhat"])
-        self.__state = (S, xhat)
+        self._state = (S, xhat)

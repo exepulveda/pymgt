@@ -14,6 +14,36 @@ from .ppmt_utils import find_next_best_direction_gd
 from .ppmt_utils import find_next_best_direction
 from .metrics import FRIEDMAN_METRIC
 
+from typing import List
+from .nscores import UnivariateGaussianState
+from .nscores import MarginalGaussianState
+from .sphering import SpheringState
+from .interface import Vector
+from .interface import Array2D
+from .interface import AbstractState
+
+class PPMTStepState(AbstractState):
+    """The state of a PPMT step
+    """
+    def __init__(self, direction: Vector, raw_table: Vector):
+        self.direction = direction
+        self.raw_table = raw_table
+
+
+class PPMTStep(AbstractState):
+    """The state of a PPMT transform
+    """
+    def __init__(self, state_initial_marginal: MarginalGaussianState, 
+                       state_sphering: SpheringState,
+                       gaussian_table: Vector,
+                       iteration_steps: List[PPMTStepState],
+                       state_final_marginal: MarginalGaussianState):
+        self.state_initial_marginal = state_initial_marginal
+        self.state_sphering = state_sphering
+        self.gaussian_table = gaussian_table
+        self.iteration_steps = iteration_steps
+        self.state_final_marginal = state_final_marginal
+
 
 class PPMTransform(Transform):
     """The original projection pursuit mutivariate transform (as closer as possible) with some
@@ -33,7 +63,6 @@ class PPMTransform(Transform):
         self._ugt = UnivariateGaussianTransform()
         self._mvgt = MarginalGaussianTransform()
         self._sph = SpheringTransform()
-        self._state = None
         self.maxiter = maxiter
         self.target = target
 
@@ -41,12 +70,6 @@ class PPMTransform(Transform):
         self._apply_sphering = True
         self._apply_iterations = True
         self._apply_last_marginal = True
-
-    def _set_state(self, state):
-        self.__state = state
-
-    def _get_state(self):
-        return self.__state
 
     def fit_transform(self, x, weights=None):
         ndata, ndim = x.shape
@@ -96,7 +119,7 @@ class PPMTransform(Transform):
                 if gaussian_table is None:
                     gaussian_table = gtable
 
-                state3_steps += [(direction, rtable)]
+                state3_steps += [PPMTStepState(direction, rtable)]
 
                 if self.tracing:
                     for dim in range(ndim):
@@ -117,15 +140,19 @@ class PPMTransform(Transform):
             y = self._mvgt.fit_transform(y)
             state4 = self._mvgt.state
 
-        self._state = (state1, state2, gaussian_table, state3_steps, state4)
+        self._state = PPMTStep(state1, state2, gaussian_table, state3_steps, state4)
 
         return y
 
-    def fit(self, x, y=None):
+    def fit(self, x: Array2D, y=None):
         self.fit_transform(x)
 
-    def transform(self, x):
-        state1, state2, gaussian_table, state3_steps, state4 = self._state
+    def transform(self, x: Array2D) -> Array2D:
+        state1 = self._state.state_initial_marginal
+        state2 = self._state.state_sphering
+        gaussian_table = self._state.gaussian_table
+        state3_steps = self._state.iteration_steps
+        state4 = self._state.state_final_marginal
 
         # step 1: Marginal Gaussianisation
         self._mvgt.state = state1
@@ -137,7 +164,8 @@ class PPMTransform(Transform):
 
         # step 3: iterative PP step
         for state3_step in state3_steps:
-            direction, raw_table = state3_step
+            direction = state3_step.direction
+            raw_table = state3_step.raw_table
 
             y = self._step_transform(y, direction, raw_table, gaussian_table)
 
@@ -147,10 +175,14 @@ class PPMTransform(Transform):
 
         return y
 
-    def inverse_transform(self, y):
+    def inverse_transform(self, y: Array2D) -> Array2D:
         x = np.copy(y)
 
-        state1, state2, gaussian_table, state3_steps, state4 = self._state
+        state1 = self._state.state_initial_marginal
+        state2 = self._state.state_sphering
+        gaussian_table = self._state.gaussian_table
+        state3_steps = self._state.iteration_steps
+        state4 = self._state.state_final_marginal
 
         # step 4: last marginal Gaussianisation no weights
         if self._apply_last_marginal:
@@ -160,7 +192,9 @@ class PPMTransform(Transform):
         # step 3: iterative PP step
         if self._apply_iterations:
             for _, state3_step in enumerate(reversed(state3_steps)):
-                direction, raw_table = state3_step
+                direction = state3_step.direction
+                raw_table = state3_step.raw_table
+
                 x = self._step_inverse_transform(x, direction, raw_table, gaussian_table)
 
         # step 2: sphering
@@ -175,7 +209,7 @@ class PPMTransform(Transform):
 
         return x
 
-    def _step_fit_transform(self, x, gaussian_table, trace=False):
+    def _step_fit_transform(self, x: Array2D, gaussian_table: Vector, trace: bool=False):
         _, ndim = x.shape
         cls_name = self.__class__.__name__
 
@@ -232,8 +266,7 @@ class PPMTransform(Transform):
         # by building the bijection relationship with gaussian_table
         xp = z[:, 0]
 
-        self._ugt.state.raw_table = raw_table
-        self._ugt.state.gaussian_table = gaussian_table
+        self._ugt.state = UnivariateGaussianState(raw_table, gaussian_table)
 
         nscores = self._ugt.transform(xp)
 
@@ -257,8 +290,7 @@ class PPMTransform(Transform):
         # by building the bijection relationship with raw_table
         yp = z[:, 0]
 
-        self._ugt.state.raw_table = raw_table
-        self._ugt.state.gaussian_table = gaussian_table
+        self._ugt.state = UnivariateGaussianState(raw_table, gaussian_table)
 
         rawscores = self._ugt.inverse_transform(yp)
 
