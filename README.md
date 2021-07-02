@@ -1,3 +1,10 @@
+<p align="center">
+    <em>Pymgt is a modern Python implementation of multivariate Gaussian transform</em>
+</p>
+<p align="center">
+<img src="https://github.com/exepulveda/pymgt/workflows/Test/badge.svg" alt="Test">
+</p>
+
 # Python Multivariate Gaussian Transforms: pymgt
 
 An implementation of several useful multivariate Gaussian transforms (MGT)
