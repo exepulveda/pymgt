@@ -6,7 +6,7 @@ from test_utils import *
 def test_state():
     ndim = 4
     ndata = 1000
-    maxiters = 10
+    maxiter = 10
 
     np.random.seed(1)
 
@@ -18,7 +18,7 @@ def test_state():
     
     print(f"target for ({ndata},{ndim})={target}")
 
-    t1 = RBIGTransform(objective=metric, maxiter=maxiters, target=target)
+    t1 = RBIGTransform(objective=metric, maxiter=maxiter, target=target)
 
     t1.fit(x)
     y1 = t1.transform(x)
@@ -26,7 +26,7 @@ def test_state():
     state = t1.state
     assert state is not None
 
-    t2 = RBIGTransform(objective=metric, maxiter=maxiters, target=target)
+    t2 = RBIGTransform(objective=metric, maxiter=maxiter, target=target)
     t2.state = state
     y2 = t2.transform(x)
 
@@ -34,12 +34,17 @@ def test_state():
 
 
 def test_rbigt():
-    x = np.loadtxt("data/synthetic_minerals.csv", delimiter=',', skiprows=1, usecols=[9, 10, 11, 12, 13, 14, 15, 16]) 
+    ndim = 8
+    ndata = 1000
+    maxiter = 10
+
+    np.random.seed(1)
+
+    x = np.random.uniform(10.0, 20.0, size=(ndata, ndim))    
+    
     ndata, ndim = x.shape
 
     x_copy = np.copy(x)
-
-    maxiter=1
 
     metric = FRIEDMAN_METRIC
 
@@ -60,7 +65,6 @@ def test_rbigt():
 
     # forward transform should return the same y
     for dim in range(2, ndim+1):
-        print(dim)
         x = np.random.random(size=(ndata, dim))
         t = RBIGTransform(objective=metric, target=target, maxiter=maxiter)
         y = t.fit_transform(x)

@@ -31,6 +31,7 @@ class RBIGState(AbstractState):
         self.marginal = marginal
         self.iteration_steps = iteration_steps
 
+
 class RBIGTransform(Transform):
     """Rotation Based Iterative Transform: This transform applies at each
     iteration a rotation transform followed by a marginal Gaussian transform.
