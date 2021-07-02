@@ -5,7 +5,7 @@ import numpy as np
 from scipy.stats import multivariate_normal
 
 from .transform import Transform
-from .nscores import UnivariateGaussianTransform
+from .nscores import univariate_nscore
 from .nscores import MarginalGaussianTransform
 from .sphering import SpheringTransform
 from .utils import orthonormal_basis
@@ -60,7 +60,6 @@ class PPMTransform(Transform):
         assert optimiser in ("original", "de")
 
         self._opt = optimiser
-        self._ugt = UnivariateGaussianTransform()
         self._mvgt = MarginalGaussianTransform()
         self._sph = SpheringTransform()
         self.maxiter = maxiter
@@ -84,7 +83,8 @@ class PPMTransform(Transform):
 
         # step 1: Marginal Gaussianisation
         if self._apply_first_marginal:
-            y = self._mvgt.fit_transform(y, weights=weights)
+            # the first gaussianisation does not use weights
+            y = self._mvgt.fit_transform(y)
             state1 = self._mvgt.state
 
             if self.tracing:
@@ -114,12 +114,14 @@ class PPMTransform(Transform):
         state3_steps = []
         if self._apply_iterations:
             for i in range(self.maxiter):
-                y, direction, pi, uvgstate = self._step_fit_transform(y, gaussian_table, False)
-                rtable, gtable = uvgstate.raw_table, uvgstate.gaussian_table
-                if gaussian_table is None:
-                    gaussian_table = gtable
+                y, direction, pi, raw_table, gaussian_table = self._step_fit_transform(y, gaussian_table, False)
 
-                state3_steps += [PPMTStepState(direction, rtable)]
+                assert np.all(np.diff(raw_table) >= 0)
+                assert np.all(np.diff(gaussian_table) >= 0)
+
+                #print("raw_table stats: ", np.min(raw_table), np.mean(raw_table), np.max(raw_table))
+                #print("gaussian_table stats: ", np.min(gaussian_table), np.mean(gaussian_table), np.max(gaussian_table))
+                state3_steps += [PPMTStepState(direction, raw_table)]
 
                 if self.tracing:
                     for dim in range(ndim):
@@ -137,7 +139,8 @@ class PPMTransform(Transform):
 
         # step 4: last marginal Gaussianisation no weights
         if self._apply_last_marginal:
-            y = self._mvgt.fit_transform(y)
+            # this final, uses weights
+            y = self._mvgt.fit_transform(y, weights=weights)
             state4 = self._mvgt.state
 
         self._state = PPMTStep(state1, state2, gaussian_table, state3_steps, state4)
@@ -192,10 +195,7 @@ class PPMTransform(Transform):
         # step 3: iterative PP step
         if self._apply_iterations:
             for _, state3_step in enumerate(reversed(state3_steps)):
-                direction = state3_step.direction
-                raw_table = state3_step.raw_table
-
-                x = self._step_inverse_transform(x, direction, raw_table, gaussian_table)
+                x = self._step_inverse_transform(x, state3_step.direction, state3_step.raw_table, gaussian_table)
 
         # step 2: sphering
         if self._apply_sphering:
@@ -234,12 +234,14 @@ class PPMTransform(Transform):
         # by building the bijection relationship with gaussian_table
         xp = z[:, 0]
 
-        nscores = self._ugt.fit_transform(xp, gaussian_table=gaussian_table)
+        if gaussian_table is None:
+            _, (_, gaussian_table, _) = univariate_nscore(xp)
 
-        if trace: print("nscores after Guassianisation pi=%f"%friedman_index(nscores))
+        # the original implementation just sort the projection to match the gaussian table
+        xp_sorted_indices = np.argsort(xp)
+        xp_sorted = xp[xp_sorted_indices]
 
-        # set nscores to the first projection
-        z[:, 0] = nscores
+        z[xp_sorted_indices, 0] = gaussian_table
 
         if trace:
             for dim in range(ndim):
@@ -252,7 +254,7 @@ class PPMTransform(Transform):
             for dim in range(ndim):
                 print("after rotation %d marginal pi=%f"%(dim, friedman_index(y[:, dim])))
 
-        return y, direction, pi, self._ugt.state
+        return y, direction, pi, xp_sorted, gaussian_table
 
     def _step_transform(self, x, direction, raw_table, gaussian_table):
         # set the rotation matrix
@@ -266,9 +268,12 @@ class PPMTransform(Transform):
         # by building the bijection relationship with gaussian_table
         xp = z[:, 0]
 
-        self._ugt.state = UnivariateGaussianState(raw_table, gaussian_table)
+        #self._ugt.state = UnivariateGaussianState(raw_table, gaussian_table)
 
-        nscores = self._ugt.transform(xp)
+        nscores = np.interp(xp, raw_table, gaussian_table)
+
+
+        # nscores = self._ugt.transform(xp)
 
         # set nscores to the first projection
         z[:, 0] = nscores
@@ -278,7 +283,7 @@ class PPMTransform(Transform):
 
         return y
 
-    def _step_inverse_transform(self, y, direction, raw_table, gaussian_table):
+    def _step_inverse_transform(self, y: Array2D, direction: Vector, raw_table: Vector, gaussian_table: Vector):
         # set the rotation matrix
         Q = orthonormal_basis(direction)
         Q_inv = np.linalg.inv(Q)
@@ -290,9 +295,10 @@ class PPMTransform(Transform):
         # by building the bijection relationship with raw_table
         yp = z[:, 0]
 
-        self._ugt.state = UnivariateGaussianState(raw_table, gaussian_table)
+        # self._ugt.state = UnivariateGaussianState(raw_table, gaussian_table)
+        rawscores = np.interp(yp, gaussian_table, raw_table)
 
-        rawscores = self._ugt.inverse_transform(yp)
+        #rawscores = self._ugt.inverse_transform(yp)
 
         #print(np.min(rawscores), np.mean(rawscores), np.max(rawscores))
 
