@@ -103,6 +103,30 @@ def test_normalscore_minmax(alpha=0.05):
     assert len(score_table_x) == sample_size + 2
     assert len(score_table_y) == sample_size + 2
 
+def test_normalscore_tables():
+
+    x = [1.0, 2.0, 3.0, 4.0, 5.0]
+
+    xminval = 0.0
+    xmaxval = 8.0
+    yminval = -10.0
+    ymaxval = 10.0
+
+    y, state = univariate_nscore(x, xminval=xminval, xmaxval=xmaxval, yminval=yminval, ymaxval=ymaxval)
+
+    score_table_x, score_table_y, weights = state
+
+    np.testing.assert_array_almost_equal(score_table_x, [0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 8.0], decimal=4)
+    # y table should ppf of 0.1 0.3 0.5 0.7 0.9
+    ytable = np.empty(len(x)+2)
+    ytable[1:-1] = scipy.stats.norm.ppf([0.1, 0.3, 0.5, 0.7, 0.9])
+    ytable[0] = yminval
+    ytable[-1] = ymaxval
+    np.testing.assert_array_almost_equal(score_table_y, ytable, decimal=4)
+    np.testing.assert_array_almost_equal(weights, np.ones_like(y), decimal=4)
+    np.testing.assert_array_almost_equal(y, ytable[1:-1], decimal=4)
+
+
 def test_marginal_transform():
     ndim = 4
     ndata = 1000
