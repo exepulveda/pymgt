@@ -13,13 +13,16 @@ from .interface import Array2D
 
 
 def univariate_generic_transform(
-        x: Array2D,
+        x: Vector,
         dist: Union[Array2D, Type[scipy.stats.rv_continuous]],
-        weights: Optional[Array2D] = None,
-        xminval: Optional[float] = None,
-        xmaxval: Optional[float] = None,
-        yminval: Optional[float] = None,
-        ymaxval: Optional[float] = None):
+        weights: Optional[Vector] = None,
+        minval=None,
+        maxval=None,
+        lower_extrapolation_mode: Optional[str]=None,
+        lower_extrapolation_param: Optional[float]=1.0,
+        upper_extrapolation_mode: Optional[str]=None,
+        upper_extrapolation_param: Optional[float]=1.0,
+        gaussian_table=None) -> Vector:
     """The univariate transform to target distribution 'dist'
     build a bijection using the cumulative distribution
     which is mapped to 'dist'
@@ -32,14 +35,20 @@ def univariate_generic_transform(
         If None, same weight to all samples
     dist: one of the univariate distributions in scipy.stats or
         a given scores of an experimental distribution
-    xminval: For the lower tail extrapolation,
-        this value is the minimum sample value allowed
-    xmaxval: For the upper tail extrapolation,
-        this value is the maximum sample value allowed
-    yminval: For the lower tail extrapolation,
-        this value is the minimum value of the target distribution
-    ymaxval: For the lower tail extrapolation,
-        this value is the maximum value of the target distribution
+    minval: For the lower tail extrapolation,
+        this value is the minimum sample value allowed.
+        default to min(x)
+    maxval: For the upper tail extrapolation,
+        this value is the maximum sample value allowed.
+        default to max(x)
+    lower_extrapolation_mode: The extrapolation mode for the lower tail.
+        The options are: linear, truncate and power
+    lower_extrapolation_param: The extrapolation parameter for the lower tail.
+        Only valid for power
+    upper_extrapolation_mode: The extrapolation mode for the upper tail.
+        The options are: linear, truncate, hyperbolic and power
+    upper_extrapolation_param: The extrapolation parameter for the upper tail.
+        Only valid for power and hyperbolic
 
     return
     ======
@@ -51,17 +60,15 @@ def univariate_generic_transform(
 
     assert len(x.shape) == 1, "x must be one-dimensional array"
 
-    add_tails = False
+    if minval is not None:
+        assert minval <= np.min(x)
+    else:
+        minval = np.min(x)
 
-    if xminval is not None:
-        assert xmaxval is not None
-        assert xminval <= np.min(x)
-        add_tails = True
-
-    if xmaxval is not None:
-        assert xmaxval is not None
-        assert xmaxval >= np.max(x)
-        add_tails = True
+    if maxval is not None:
+        assert maxval >= np.max(x)
+    else:
+        maxval = np.max(x)
 
     ndata = x.shape[0]
 
@@ -87,50 +94,35 @@ def univariate_generic_transform(
     # cumulative distribution
     if isinstance(dist, scipy.stats.rv_continuous):
         cumsum = np.cumsum(weights_normalised) - 0.5/wsum  # centroids
-        scores = dist.ppf(cumsum)
-        if add_tails:
-            score_table_y = np.empty(ndata+2)
-            score_table_y[1:ndata+1] = scores
-
-            # add extreme
-            score_table_y[0] = yminval
-            score_table_y[-1] = ymaxval
-        else:
-            score_table_y = np.empty(ndata)
-            score_table_y[:] = scores
+        score_table_y = dist.ppf(cumsum)
     else:
         scores = np.asarray(dist)
-        if add_tails:
-            assert len(scores) == ndata+2
-            score_table_y = np.copy(scores)
-        else:
-            assert len(scores) == ndata, "%d vs. %d" % (len(scores), ndata)
-            score_table_y = np.copy(scores)
+        assert len(scores) == ndata, "%d vs. %d" % (len(scores), ndata)
+        score_table_y = np.copy(scores)
 
     # transformation table for x
-    if add_tails:
-        score_table_x = np.empty(ndata+2)
-        score_table_x[1:ndata+1] = sorted_x
-        # add extremes
-        score_table_x[0] = xminval
-        score_table_x[-1] = xmaxval
-    else:
-        score_table_x = np.empty(ndata)
-        score_table_x[:] = sorted_x
+    score_table_x = np.empty(ndata)
+    score_table_x[:] = sorted_x
 
     # Interpolate
-    y = np.interp(x, score_table_x, score_table_y)
+    y = forward_interpolation(
+            x, score_table_x, score_table_y,
+            minval, maxval,
+            lower_extrapolation_mode, lower_extrapolation_param,
+            upper_extrapolation_mode, upper_extrapolation_param)
 
     return y, (score_table_x, score_table_y, weights)
 
 
-def univariate_nscore(x,
-                      weights=None,
-                      xminval=None,
-                      xmaxval=None,
-                      yminval=-6.0,
-                      ymaxval=6.0,
-                      gaussian_table=None):
+def univariate_nscore(x: Vector,
+                      weights: Optional[Vector]=None,
+                      minval=None,
+                      maxval=None,
+                      lower_extrapolation_mode: Optional[str]=None,
+                      lower_extrapolation_param: Optional[float]=1.0,
+                      upper_extrapolation_mode: Optional[str]=None,
+                      upper_extrapolation_param: Optional[float]=1.0,
+                      gaussian_table=None) -> Vector:
     """The univariate normal score transform
     build a bijection using the cumulative distribution
     which is mapped to the standard cumulative distribution
@@ -141,18 +133,20 @@ def univariate_nscore(x,
     x: data to transform. Each row represents a sample.
     weights: weight assigned to each sample.
         If None, same weight to all samples.
-    xminval: For the lower tail extrapolation,
+    minval: For the lower tail extrapolation,
         this value is the minimum sample value allowed.
         default to min(x)
-    xmaxval: For the upper tail extrapolation,
+    maxval: For the upper tail extrapolation,
         this value is the maximum sample value allowed.
         default to max(x)
-    yminval: For the lower tail extrapolation,
-        this value is the minimum value of the standard
-        Gaussian distribution. Default to -10.0
-    ymaxval: For the lower tail extrapolation,
-        this value is the maximum value of the standard
-        Gaussian distribution. Default to 10.0
+    lower_extrapolation_mode: The extrapolation mode for the lower tail.
+        The options are: linear, truncate and power
+    lower_extrapolation_param: The extrapolation parameter for the lower tail.
+        Only valid for power
+    upper_extrapolation_mode: The extrapolation mode for the upper tail.
+        The options are: linear, truncate, hyperbolic and power
+    upper_extrapolation_param: The extrapolation parameter for the upper tail.
+        Only valid for power and hyperbolic
 
     return
     ======
@@ -167,10 +161,12 @@ def univariate_nscore(x,
         np.asarray(x),
         dist,
         weights=weights,
-        xminval=xminval,
-        xmaxval=xmaxval,
-        yminval=yminval,
-        ymaxval=ymaxval
+        minval=minval,
+        maxval=maxval,
+        lower_extrapolation_mode=lower_extrapolation_mode,
+        lower_extrapolation_param=lower_extrapolation_param,
+        upper_extrapolation_mode=upper_extrapolation_mode,
+        upper_extrapolation_param=upper_extrapolation_param
     )
 
 
@@ -234,13 +230,15 @@ class UnivariateGaussianTransform(Transform):
 
     """
 
-    def __init__(self, xminval=None, xmaxval=None, yminval=-6.0, ymaxval=6.0, **kargs):
+    def __init__(self, **kargs):
         super(UnivariateGaussianTransform, self).__init__(**kargs)
 
-        self._xminval = xminval
-        self._xmaxval = xmaxval
-        self._yminval = yminval
-        self._ymaxval = ymaxval
+        self._minval = kargs.get("minval", None)
+        self._maxval = kargs.get("maxval", None)
+        self._lextra_mode=kargs.get("lower_extrapolation_mode", "linear"),
+        self._lextra_param=kargs.get("lower_extrapolation_param", None),
+        self._uextra_mode=kargs.get("upper_extrapolation_mode", "linear"),
+        self._uextra_param=kargs.get("upper_extrapolation_param", None)
 
     def fit_transform(self, x, weights=None, gaussian_table=None):
         x = np.asarray(x)
@@ -250,10 +248,12 @@ class UnivariateGaussianTransform(Transform):
         y, transform_table = univariate_nscore(
             x,
             weights=weights,
-            xminval=self._xminval,
-            xmaxval=self._xmaxval,
-            yminval=self._yminval,
-            ymaxval=self._ymaxval,
+            minval=self._minval,
+            maxval=self._maxval,
+            lower_extrapolation_mode=self._lextra_mode,
+            lower_extrapolation_param=self._lextra_param,
+            upper_extrapolation_mode=self._uextra_mode,
+            upper_extrapolation_param=self._uextra_param,
             gaussian_table=gaussian_table
         )
 
@@ -271,7 +271,16 @@ class UnivariateGaussianTransform(Transform):
         assert len(x.shape) == 1
 
         # interpolation from original space to Gaussian space
-        y = np.interp(x, self.state.raw_table, self.state.gaussian_table)
+        y = forward_interpolation(
+            x,
+            self.state.raw_table, self.state.gaussian_table,
+            minval=self._minval,
+            maxval=self._maxval,
+            lower_extrapolation_mode=self._lextra_mode,
+            lower_extrapolation_param=self._lextra_param,
+            upper_extrapolation_mode=self._uextra_mode,
+            upper_extrapolation_param=self._uextra_param
+        )
 
         return y
 
@@ -280,7 +289,16 @@ class UnivariateGaussianTransform(Transform):
         assert len(y.shape) == 1
 
         # interpolation from Gaussian space to original space
-        x = np.interp(y, self.state.gaussian_table, self.state.raw_table)
+        x = backward_interpolation(
+            y,
+            self.state.raw_table, self.state.gaussian_table,
+            minval=self._minval,
+            maxval=self._maxval,
+            lower_extrapolation_mode=self._lextra_mode,
+            lower_extrapolation_param=self._lextra_param,
+            upper_extrapolation_mode=self._uextra_mode,
+            upper_extrapolation_param=self._uextra_param
+        )
 
         return x
 
@@ -296,10 +314,17 @@ class UnivariateGaussianTransform(Transform):
 class MarginalGaussianState(AbstractState):
     """The state of a MarginalGaussianTransform
     """
-    def __init__(self, raw_tables: List[Vector], gaussian_table: Vector, weights: Vector, ndim: int):
+    def __init__(self, minval: Vector, maxval: Vector,
+                 raw_tables: List[Vector], gaussian_table: Vector,
+                 weights: Vector, ndim: int):
+
+        assert minval is not None
+        assert maxval is not None
         assert raw_tables is not None
         assert gaussian_table is not None
 
+        self.minval = minval
+        self.maxval = maxval
         self.gaussian_table = gaussian_table
         self.weights = weights
         self.raw_tables = raw_tables
@@ -353,38 +378,42 @@ class MarginalGaussianTransform(Transform):
 
     """
 
-    def __init__(self, xminval: float=None, xmaxval: float=None,
-                       yminval: float=None, ymaxval: float=None, **kargs):
+    def __init__(self, **kargs):
         super(MarginalGaussianTransform, self).__init__(name=kargs.get("name", None))
 
-        if xminval is not None or xmaxval is not None \
-           or yminval is not None or ymaxval is not None:
-            assert xminval is not None
-            assert xmaxval is not None
-            assert yminval is not None
-            assert ymaxval is not None
-            assert len(xminval) == len(xmaxval)
-            assert len(xminval) == len(yminval)
-            assert len(xminval) == len(ymaxval)
+        self._minval = kargs.get("minval", None)
+        self._maxval = kargs.get("maxval", None)
 
-        self.__xminval = xminval
-        self.__xmaxval = xmaxval
-        self.__yminval = yminval
-        self.__ymaxval = ymaxval
+        if self._minval is not None or self._maxval is not None:
+            assert len(self._minval) == len(self._maxval)
+
+        self._lextra_mode = kargs.get("lower_extrapolation_mode", "linear")
+        self._lextra_param = kargs.get("lower_extrapolation_param", None)
+        self._uextra_mode = kargs.get("upper_extrapolation_mode", "linear")
+        self._uextra_param = kargs.get("upper_extrapolation_param", None)
 
     def fit_transform(self, x: Array2D, weights: Optional[Vector]=None) -> Array2D:
         ndata, ndim = x.shape
 
         y = np.empty_like(x)
 
+        if self._minval is None:
+            self._minval = np.min(x, axis=0)
+
+        if self._maxval is None:
+            self._maxval = np.max(x, axis=0)
+
+
         # transform the first variable
         y[:, 0], transform_table_1 = univariate_nscore(
             x[:, 0],
             weights=weights,
-            xminval=None if self.__xminval is None else self.__xminval[0],
-            xmaxval=None if self.__xmaxval is None else self.__xmaxval[0],
-            yminval=None if self.__yminval is None else self.__yminval[0],
-            ymaxval=None if self.__ymaxval is None else self.__ymaxval[0]
+            minval=self._minval[0],
+            maxval=self._maxval[0],
+            lower_extrapolation_mode=self._lextra_mode,
+            lower_extrapolation_param=self._lextra_param,
+            upper_extrapolation_mode=self._uextra_mode,
+            upper_extrapolation_param=self._uextra_param
         )
 
         # we can reuse the second part of the transform_table from variable 1
@@ -397,16 +426,18 @@ class MarginalGaussianTransform(Transform):
             y[:, dim], transform_table_ = univariate_nscore(
                 x[:, dim],
                 weights=weights,
-                xminval=None if self.__xminval is None else self.__xminval[dim],
-                xmaxval=None if self.__xmaxval is None else self.__xmaxval[dim],
-                yminval=None if self.__yminval is None else self.__yminval[dim],
-                ymaxval=None if self.__ymaxval is None else self.__ymaxval[dim],
+                minval=self._minval[dim],
+                maxval=self._maxval[dim],
+                lower_extrapolation_mode=self._lextra_mode,
+                lower_extrapolation_param=self._lextra_param,
+                upper_extrapolation_mode=self._uextra_mode,
+                upper_extrapolation_param=self._uextra_param,
                 gaussian_table=gaussian_table
             )
 
             raw_tables[:, dim] = transform_table_[0]
 
-        self.state = MarginalGaussianState(raw_tables, gaussian_table, weights, ndim)
+        self.state = MarginalGaussianState(self._minval, self._maxval, raw_tables, gaussian_table, weights, ndim)
 
         return y
 
@@ -420,9 +451,16 @@ class MarginalGaussianTransform(Transform):
         y = np.empty_like(x)
 
         for dim in range(ndim):
-            y[:, dim] = np.interp(x[:, dim],
-                                  self.state.raw_tables[:, dim],
-                                  self.state.gaussian_table)
+            y[:, dim] = forward_interpolation(
+                x[:, dim],
+                self.state.raw_tables[:, dim], self.state.gaussian_table,
+                minval=self.state.minval[dim],
+                maxval=self.state.maxval[dim],
+                lower_extrapolation_mode=self._lextra_mode,
+                lower_extrapolation_param=self._lextra_param,
+                upper_extrapolation_mode=self._uextra_mode,
+                upper_extrapolation_param=self._uextra_param
+            )
 
         return y
 
@@ -433,7 +471,16 @@ class MarginalGaussianTransform(Transform):
         x = np.empty_like(y)
 
         for dim in range(ndim):
-            x[:, dim] = np.interp(y[:, dim], self.state.gaussian_table, self.state.raw_tables[:, dim])
+            x[:, dim] = backward_interpolation(
+                y[:, dim],
+                self.state.raw_tables[:, dim], self.state.gaussian_table,
+                minval=self.state.minval[dim],
+                maxval=self.state.maxval[dim],
+                lower_extrapolation_mode=self._lextra_mode,
+                lower_extrapolation_param=self._lextra_param,
+                upper_extrapolation_mode=self._uextra_mode,
+                upper_extrapolation_param=self._uextra_param
+            )
 
         return x
 
@@ -450,11 +497,11 @@ def forward_interpolation(x: Vector, raw_table: Vector, gaussian_table: Vector, 
                           lower_extrapolation_mode: Optional[str]=None, lower_extrapolation_param: Optional[float]=1.0,
                           upper_extrapolation_mode: Optional[str]=None, upper_extrapolation_param: Optional[float]=1.0
                          ) -> Vector:
-    if minval >= raw_table[0]:
-        raise ValueError("Minimum value %f should be lower than actual minimum of the raw table %f"%(minval, raw_table[0]))
+    if minval > raw_table[0]:
+        raise ValueError("Minimum value %f should be lower or equal than actual minimum of the raw table %f"%(minval, raw_table[0]))
 
     if maxval < raw_table[-1]:
-        raise ValueError("Maximum value %f should be greater than actual maximum of the raw table %f"%(maxval, raw_table[-1]))
+        raise ValueError("Maximum value %f should be greater or equal than actual maximum of the raw table %f"%(maxval, raw_table[-1]))
 
     if lower_extrapolation_mode is None or lower_extrapolation_mode == "linear":
         power_lower = 1.0
@@ -511,11 +558,11 @@ def backward_interpolation(y: Vector, raw_table: Vector, gaussian_table: Vector,
                           lower_extrapolation_mode: Optional[str]=None, lower_extrapolation_param: Optional[float]=1.0,
                           upper_extrapolation_mode: Optional[str]=None, upper_extrapolation_param: Optional[float]=1.0
                          ) -> Vector:
-    if minval >= raw_table[0]:
-        raise ValueError("Minimum value %f should be lower than actual minimum of the raw table %f"%(minval, raw_table[0]))
+    if minval > raw_table[0]:
+        raise ValueError("Minimum value %f should be lower or equal than actual minimum of the raw table %f"%(minval, raw_table[0]))
 
     if maxval < raw_table[-1]:
-        raise ValueError("Maximum value %f should be greater than actual maximum of the raw table %f"%(maxval, raw_table[-1]))
+        raise ValueError("Maximum value %f should be greater or equal than actual maximum of the raw table %f"%(maxval, raw_table[-1]))
 
     if lower_extrapolation_mode is None or lower_extrapolation_mode == "linear":
         power_lower = 1.0

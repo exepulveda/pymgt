@@ -77,12 +77,10 @@ def test_normalscore_minmax(alpha=0.05):
     # weights should sum up the sample_size
     np.testing.assert_almost_equal(np.sum(weights), sample_size)
 
-    xminval = np.min(x)*0.9
-    xmaxval = np.max(x)*1.1
-    yminval = -8.0
-    ymaxval = 8.0
+    minval = np.min(x)*0.9
+    maxval = np.max(x)*1.1
 
-    y, state = univariate_nscore(x, weights=weights, xminval=xminval, xmaxval=xmaxval, yminval=yminval, ymaxval=ymaxval)
+    y, state = univariate_nscore(x, weights=weights, minval=minval, maxval=maxval)
 
     score_table_x, score_table_y, weights = state
 
@@ -99,36 +97,31 @@ def test_normalscore_minmax(alpha=0.05):
     assert_array_sorted(score_table_y)
 
     # first and last element in tables should be minimum and maximum
-    assert score_table_x[0] == xminval
-    assert score_table_x[-1] == xmaxval
-    assert score_table_y[0] == yminval
-    assert score_table_y[-1] == ymaxval
+    assert score_table_x[0] == np.min(x)
+    assert score_table_x[-1] == np.max(x)
+    assert scipy.stats.norm.cdf(score_table_y[0]) >= 0.0
+    assert scipy.stats.norm.cdf(score_table_y[-1]) <= 1.0
 
-    assert len(score_table_x) == sample_size + 2
-    assert len(score_table_y) == sample_size + 2
+    assert len(score_table_x) == sample_size
+    assert len(score_table_y) == sample_size
 
 def test_normalscore_tables():
 
     x = [1.0, 2.0, 3.0, 4.0, 5.0]
 
-    xminval = 0.0
-    xmaxval = 8.0
-    yminval = -10.0
-    ymaxval = 10.0
+    minval = 0.0
+    maxval = 8.0
 
-    y, state = univariate_nscore(x, xminval=xminval, xmaxval=xmaxval, yminval=yminval, ymaxval=ymaxval)
+    y, state = univariate_nscore(x, minval=minval, maxval=maxval)
 
     score_table_x, score_table_y, weights = state
 
-    np.testing.assert_array_almost_equal(score_table_x, [0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 8.0], decimal=4)
+    np.testing.assert_array_almost_equal(score_table_x, [1.0, 2.0, 3.0, 4.0, 5.0], decimal=4)
     # y table should ppf of 0.1 0.3 0.5 0.7 0.9
-    ytable = np.empty(len(x)+2)
-    ytable[1:-1] = scipy.stats.norm.ppf([0.1, 0.3, 0.5, 0.7, 0.9])
-    ytable[0] = yminval
-    ytable[-1] = ymaxval
+    ytable = scipy.stats.norm.ppf([0.1, 0.3, 0.5, 0.7, 0.9])
     np.testing.assert_array_almost_equal(score_table_y, ytable, decimal=4)
     np.testing.assert_array_almost_equal(weights, np.ones_like(y), decimal=4)
-    np.testing.assert_array_almost_equal(y, ytable[1:-1], decimal=4)
+    np.testing.assert_array_almost_equal(y, ytable, decimal=4)
 
 
 def test_marginal_transform():
@@ -326,6 +319,8 @@ def test_backward_interpolation():
     upper_extrapolation_param = 1.0
 
     y = backward_interpolation([-2.5, 2.5], raw_table, gaussian_table, minval, maxval,
+                          lower_extrapolation_mode=lower_extrapolation_mode,
+                          lower_extrapolation_param=lower_extrapolation_param,
                           upper_extrapolation_mode=upper_extrapolation_mode,
                           upper_extrapolation_param=upper_extrapolation_param)
 
