@@ -21,8 +21,7 @@ def univariate_generic_transform(
         lower_extrapolation_mode: Optional[str]=None,
         lower_extrapolation_param: Optional[float]=1.0,
         upper_extrapolation_mode: Optional[str]=None,
-        upper_extrapolation_param: Optional[float]=1.0,
-        gaussian_table=None) -> Vector:
+        upper_extrapolation_param: Optional[float]=1.0) -> Vector:
     """The univariate transform to target distribution 'dist'
     build a bijection using the cumulative distribution
     which is mapped to 'dist'
@@ -60,14 +59,10 @@ def univariate_generic_transform(
 
     assert len(x.shape) == 1, "x must be one-dimensional array"
 
-    if minval is not None:
-        assert minval <= np.min(x)
-    else:
+    if minval is None:
         minval = np.min(x)
 
-    if maxval is not None:
-        assert maxval >= np.max(x)
-    else:
+    if maxval is None:
         maxval = np.max(x)
 
     ndata = x.shape[0]
@@ -161,8 +156,8 @@ def univariate_nscore(x: Vector,
         np.asarray(x),
         dist,
         weights=weights,
-        minval=minval,
-        maxval=maxval,
+        minval=np.min(x) if minval is None else minval,
+        maxval=np.max(x) if maxval is None else maxval,
         lower_extrapolation_mode=lower_extrapolation_mode,
         lower_extrapolation_param=lower_extrapolation_param,
         upper_extrapolation_mode=upper_extrapolation_mode,
@@ -488,6 +483,9 @@ def power_interpolation(x: float, xlower: float, xupper: float, ylower: float, y
     if x < xlower:
         return ylower
 
+    if x > xupper:
+        return xupper
+
     if (xupper - xlower) < np.finfo(float).eps:
         return (yupper + ylower) / 2.0
 
@@ -497,12 +495,6 @@ def forward_interpolation(x: Vector, raw_table: Vector, gaussian_table: Vector, 
                           lower_extrapolation_mode: Optional[str]=None, lower_extrapolation_param: Optional[float]=1.0,
                           upper_extrapolation_mode: Optional[str]=None, upper_extrapolation_param: Optional[float]=1.0
                          ) -> Vector:
-    if minval > raw_table[0]:
-        raise ValueError("Minimum value %f should be lower or equal than actual minimum of the raw table %f"%(minval, raw_table[0]))
-
-    if maxval < raw_table[-1]:
-        raise ValueError("Maximum value %f should be greater or equal than actual maximum of the raw table %f"%(maxval, raw_table[-1]))
-
     if lower_extrapolation_mode is None or lower_extrapolation_mode == "linear":
         power_lower = 1.0
     elif lower_extrapolation_mode == "power":
@@ -558,12 +550,6 @@ def backward_interpolation(y: Vector, raw_table: Vector, gaussian_table: Vector,
                           lower_extrapolation_mode: Optional[str]=None, lower_extrapolation_param: Optional[float]=1.0,
                           upper_extrapolation_mode: Optional[str]=None, upper_extrapolation_param: Optional[float]=1.0
                          ) -> Vector:
-    if minval > raw_table[0]:
-        raise ValueError("Minimum value %f should be lower or equal than actual minimum of the raw table %f"%(minval, raw_table[0]))
-
-    if maxval < raw_table[-1]:
-        raise ValueError("Maximum value %f should be greater or equal than actual maximum of the raw table %f"%(maxval, raw_table[-1]))
-
     if lower_extrapolation_mode is None or lower_extrapolation_mode == "linear":
         power_lower = 1.0
     elif lower_extrapolation_mode == "power":

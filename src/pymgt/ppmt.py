@@ -6,6 +6,8 @@ from scipy.stats import multivariate_normal
 
 from .transform import Transform
 from .nscores import univariate_nscore
+from .nscores import forward_interpolation
+from .nscores import backward_interpolation
 from .nscores import MarginalGaussianTransform
 from .sphering import SpheringTransform
 from .utils import orthonormal_basis
@@ -64,6 +66,11 @@ class PPMTransform(Transform):
         self._sph = SpheringTransform()
         self.maxiter = maxiter
         self.target = target
+
+        self._lextra_mode = kargs.get("lower_extrapolation_mode", "power")
+        self._lextra_param = kargs.get("lower_extrapolation_param", 1.95)
+        self._uextra_mode = kargs.get("upper_extrapolation_mode", "power")
+        self._uextra_param = kargs.get("upper_extrapolation_param", 1.95)
 
         self._apply_first_marginal = True
         self._apply_sphering = True
@@ -235,7 +242,16 @@ class PPMTransform(Transform):
         xp = z[:, 0]
 
         if gaussian_table is None:
-            _, (_, gaussian_table, _) = univariate_nscore(xp)
+            _, (_, gaussian_table, _) = univariate_nscore(
+                xp,
+                minval=None,
+                maxval=None,
+                lower_extrapolation_mode=self._lextra_mode,
+                lower_extrapolation_param=self._lextra_param,
+                upper_extrapolation_mode=self._uextra_mode,
+                upper_extrapolation_param=self._uextra_param
+            )
+
 
         # the original implementation just sort the projection to match the gaussian table
         xp_sorted_indices = np.argsort(xp)
@@ -270,10 +286,16 @@ class PPMTransform(Transform):
 
         #self._ugt.state = UnivariateGaussianState(raw_table, gaussian_table)
 
-        nscores = np.interp(xp, raw_table, gaussian_table)
-
-
-        # nscores = self._ugt.transform(xp)
+        nscores = forward_interpolation(
+            xp,
+            raw_table, gaussian_table,
+            minval=np.min(raw_table),
+            maxval=np.max(raw_table),
+            lower_extrapolation_mode=self._lextra_mode,
+            lower_extrapolation_param=self._lextra_param,
+            upper_extrapolation_mode=self._uextra_mode,
+            upper_extrapolation_param=self._uextra_param
+        )
 
         # set nscores to the first projection
         z[:, 0] = nscores
@@ -295,10 +317,17 @@ class PPMTransform(Transform):
         # by building the bijection relationship with raw_table
         yp = z[:, 0]
 
-        # self._ugt.state = UnivariateGaussianState(raw_table, gaussian_table)
-        rawscores = np.interp(yp, gaussian_table, raw_table)
 
-        #rawscores = self._ugt.inverse_transform(yp)
+        rawscores = backward_interpolation(
+            yp,
+            raw_table, gaussian_table,
+            minval=np.min(raw_table),
+            maxval=np.max(raw_table),
+            lower_extrapolation_mode=self._lextra_mode,
+            lower_extrapolation_param=self._lextra_param,
+            upper_extrapolation_mode=self._uextra_mode,
+            upper_extrapolation_param=self._uextra_param
+        )
 
         #print(np.min(rawscores), np.mean(rawscores), np.max(rawscores))
 
