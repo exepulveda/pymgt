@@ -1,8 +1,12 @@
 import numpy as np
 import scipy
+import scipy.stats
+import pytest
 
 from pymgt import *
 from pymgt.nscores import univariate_nscore
+from pymgt.nscores import forward_interpolation
+from pymgt.nscores import backward_interpolation
 from test_utils import *
 
 
@@ -167,16 +171,164 @@ def test_marginal_state():
 
     np.testing.assert_array_almost_equal(y1, y2)
 
-def test_real_data():
-    x = np.loadtxt("data/synthetic_minerals.csv", delimiter=',', skiprows=1, usecols=[9, 10, 11, 12, 13, 14, 15, 16]) 
-    
-    t1 = MarginalGaussianTransform()
+def test_forward_interpolation():
+    raw_table = np.array([10.0, 20.0, 30.0, 40.0, 50.0])
+    gaussian_table = np.array([-2.0, -1.0, 0.0, 1.0, 2.0])
 
-    y1 = t1.fit_transform(x)
-    t_state = t1.state
+    # assertions
+    # minval
+    with pytest.raises(ValueError):
+        y = forward_interpolation([15.0], raw_table, gaussian_table, 40.0, 70.0)
+    # maxval
+    with pytest.raises(ValueError):
+        y = forward_interpolation([15.0], raw_table, gaussian_table, 0.0, 45.0)
+    # extrapolation_mode
+    with pytest.raises(ValueError):
+        y = forward_interpolation([15.0], raw_table, gaussian_table, 0.0, 70.0,
+                                  lower_extrapolation_mode="unkown")
+    # extrapolation_mode
+    with pytest.raises(ValueError):
+        y = forward_interpolation([15.0], raw_table, gaussian_table, 0.0, 70.0,
+                                  upper_extrapolation_mode="unkown")
 
-    t2 = MarginalGaussianTransform()
-    t2.state = t_state
-    y2 = t2.transform(x)
+    minval = 0.0
+    maxval = 100.0
+    lower_extrapolation_mode = "linear"
+    lower_extrapolation_param = None
 
-    np.testing.assert_array_almost_equal(y1, y2)
+    # linear interpolation 15.0 -> -1.5
+    y = forward_interpolation([15.0], raw_table, gaussian_table, minval, maxval,
+                          lower_extrapolation_mode, lower_extrapolation_param)
+
+    assert 0 <= scipy.stats.norm.cdf(y[0]) <= 1.0
+    assert y[0] == -1.5
+
+    minval = 0.0
+    maxval = 100.0
+    lower_extrapolation_mode = "linear"
+    lower_extrapolation_param = None
+
+    # linear interpolation of 5.0 using
+    # (0.0, 10.0) and (0.0, ppf(-2.0)) -> -2.2776
+    y = forward_interpolation([5.0], raw_table, gaussian_table, minval, maxval,
+                          lower_extrapolation_mode, lower_extrapolation_param)
+
+    assert 0 <= scipy.stats.norm.cdf(y[0]) <= 1.0
+    np.testing.assert_almost_equal(y, -2.2776048388094594)
+
+    # linear interpolation of 60.0 using   
+    # (50.0, 70.0) and (ppf(2.0), 1.0) -> 2.2776
+    minval = 0.0
+    maxval = 70.0
+    upper_extrapolation_mode = "linear"
+    upper_extrapolation_param = None
+
+    y = forward_interpolation([60.0], raw_table, gaussian_table, minval, maxval,
+                          upper_extrapolation_mode, upper_extrapolation_param)
+
+    assert 0 <= scipy.stats.norm.cdf(y[0]) <= 1.0
+    np.testing.assert_almost_equal(y, 2.27760484)
+
+    # linear interpolation (but using power 1.0) of [5.0, 60.0] using
+    minval = 0.0
+    maxval = 70.0
+    lower_extrapolation_mode = "power"
+    lower_extrapolation_param = 1.0
+    upper_extrapolation_mode = "power"
+    upper_extrapolation_param = 1.0
+
+    y = forward_interpolation([5.0, 60.0], raw_table, gaussian_table, minval, maxval,
+                          upper_extrapolation_mode, upper_extrapolation_param)
+
+    assert 0 <= scipy.stats.norm.cdf(y[0]) <= 1.0
+    assert 0 <= scipy.stats.norm.cdf(y[1]) <= 1.0
+    np.testing.assert_array_almost_equal(y, [-2.27760484, 2.27760484])
+
+def test_backward_interpolation():
+    raw_table = np.array([10.0, 20.0, 30.0, 40.0, 50.0])
+    gaussian_table = np.array([-2.0, -1.0, 0.0, 1.0, 2.0])
+
+    # assertions
+    # minval
+    with pytest.raises(ValueError):
+        x = backward_interpolation([-1.5], raw_table, gaussian_table, 40.0, 70.0)
+    # maxval
+    with pytest.raises(ValueError):
+        x = backward_interpolation([-1.5], raw_table, gaussian_table, 0, 35.0)
+    # extrapolation_mode
+    with pytest.raises(ValueError):
+        x = backward_interpolation([-1.5], raw_table, gaussian_table, 0.0, 60.0,
+                                  lower_extrapolation_mode="unkown")
+    # extrapolation_mode
+    with pytest.raises(ValueError):
+        x = backward_interpolation([-1.5], raw_table, gaussian_table, 0.0, 60.0,
+                                  upper_extrapolation_mode="unkown")
+
+    # linear interpolation working
+    minval = 0.0
+    maxval = 60.0
+    lower_extrapolation_mode = "linear"
+    lower_extrapolation_param = None
+
+    x = backward_interpolation([-1.5], raw_table, gaussian_table, minval, maxval,
+                          lower_extrapolation_mode, lower_extrapolation_param)
+
+    assert x[0] == 15.0
+
+    # linear extrapolation of -2.5 using
+    # (0.0, cdf(-2.5)) and (0.0, 10.0) -> 2.72950739
+    minval = 0.0
+    maxval = 60.0
+    lower_extrapolation_mode = "linear"
+    lower_extrapolation_param = None
+
+
+    y = backward_interpolation([-2.5], raw_table, gaussian_table, minval, maxval,
+                          lower_extrapolation_mode, lower_extrapolation_param)
+
+    assert minval <= y[0] <= maxval
+    np.testing.assert_almost_equal(y, [2.72950739])
+
+    # linear extrapolation of 2.5 using   
+    # (0.0, cdf(-2.5)) and (50.0, 70.0) -> 64.54098522160602
+    minval = 0.0
+    maxval = 70.0
+    upper_extrapolation_mode = "linear"
+    upper_extrapolation_param = None
+
+    y = backward_interpolation([2.5], raw_table, gaussian_table, minval, maxval,
+                          upper_extrapolation_mode=upper_extrapolation_mode,
+                          upper_extrapolation_param=upper_extrapolation_param)
+
+    assert minval <= y[0] <= maxval
+    np.testing.assert_almost_equal(y, [64.54098522160602])
+
+    # hyperbolic extrapolation of 2.5 using   
+    # (0.0, cdf(-2.5)) and (50.0, 70.0) -> 97.3100186862884
+    minval = 0.0
+    maxval = 70.0
+    upper_extrapolation_mode = "hyperbolic"
+    upper_extrapolation_param = 1.95
+
+    y = backward_interpolation([2.5], raw_table, gaussian_table, minval, maxval,
+                          upper_extrapolation_mode=upper_extrapolation_mode,
+                          upper_extrapolation_param=upper_extrapolation_param)
+
+    assert minval <= y[0]
+    np.testing.assert_almost_equal(y, [97.3100186862884])
+
+    # linear interpolation (but using power 1.0) of [5.0, 60.0] using
+    minval = 0.0
+    maxval = 70.0
+    lower_extrapolation_mode = "power"
+    lower_extrapolation_param = 1.0
+    upper_extrapolation_mode = "power"
+    upper_extrapolation_param = 1.0
+
+    y = backward_interpolation([-2.5, 2.5], raw_table, gaussian_table, minval, maxval,
+                          upper_extrapolation_mode=upper_extrapolation_mode,
+                          upper_extrapolation_param=upper_extrapolation_param)
+
+    assert minval <= y[0] <= maxval
+    assert minval <= y[1] <= maxval
+    np.testing.assert_array_almost_equal(y, [2.72950739, 64.54098522160602])

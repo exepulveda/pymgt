@@ -1,6 +1,8 @@
 """Normal score transform for the univariate and marginal cases
 """
-from typing import Union, Type, Optional, List
+import pytest
+
+from typing import Union, Type, Optional, List, Tuple
 
 import numpy as np
 import scipy.stats
@@ -434,3 +436,141 @@ class MarginalGaussianTransform(Transform):
             x[:, dim] = np.interp(y[:, dim], self.state.gaussian_table, self.state.raw_tables[:, dim])
 
         return x
+
+def power_interpolation(x: float, xlower: float, xupper: float, ylower: float, yupper: float, power: float=1.0) -> float:
+    if x < xlower:
+        return ylower
+
+    if (xupper - xlower) < np.finfo(float).eps:
+        return (yupper + ylower) / 2.0
+
+    return ylower + (yupper - ylower) * ((x-xlower)/(xupper-xlower))**power
+
+def forward_interpolation(x: Vector, raw_table: Vector, gaussian_table: Vector, minval: float, maxval: float,
+                          lower_extrapolation_mode: Optional[str]=None, lower_extrapolation_param: Optional[float]=1.0,
+                          upper_extrapolation_mode: Optional[str]=None, upper_extrapolation_param: Optional[float]=1.0
+                         ) -> Vector:
+    if minval >= raw_table[0]:
+        raise ValueError("Minimum value %f should be lower than actual minimum of the raw table %f"%(minval, raw_table[0]))
+
+    if maxval < raw_table[-1]:
+        raise ValueError("Maximum value %f should be greater than actual maximum of the raw table %f"%(maxval, raw_table[-1]))
+
+    if lower_extrapolation_mode is None or lower_extrapolation_mode == "linear":
+        power_lower = 1.0
+    elif lower_extrapolation_mode == "power":
+        if lower_extrapolation_param is None or lower_extrapolation_param == 0.0:
+            raise ValueError("Lower tail extrapolation param must be not zero real number")
+        power_lower = 1.0 / lower_extrapolation_param
+    elif lower_extrapolation_mode != "truncate":
+        raise ValueError("Invalid lower tail extrapolation mode [%s]"%lower_extrapolation_mode)
+
+    if upper_extrapolation_mode is None or upper_extrapolation_mode == "linear":
+        power_upper = 1.0
+    elif upper_extrapolation_mode == "power":
+        if upper_extrapolation_param is None or upper_extrapolation_param == 0.0:
+            raise ValueError("Upper tail extrapolation param must be not zero real number")
+        power_upper = 1.0 / upper_extrapolation_param
+    else:
+        raise ValueError("Invalid upper tail extrapolation mode [%s]"%upper_extrapolation_mode)
+
+    x = np.asarray(x)
+
+    # note that numpy will truncate in extrapolation case
+    y = np.interp(x, raw_table, gaussian_table)
+
+    # quick return
+    if lower_extrapolation_mode == "truncate" and upper_extrapolation_mode == "truncate":
+        return y  # interp will truncate the extremes 
+
+    # check for lower tail
+    indices = np.where(x < raw_table[0])[0]
+    for i in indices:
+        # compute the interpolation of the cdf
+        icdf = power_interpolation(x[i],
+                                   minval, raw_table[0],
+                                   0.0, scipy.stats.norm.cdf(gaussian_table[0]),
+                                   power=power_lower)
+        # transform back
+        y[i] = scipy.stats.norm.ppf(icdf)
+
+    # check for upper tail
+    indices = np.where(x > raw_table[-1])[0]
+    for i in indices:
+        #import pdb; pdb.set_trace()
+        icdf = power_interpolation(x[i],
+                                   raw_table[-1], maxval,
+                                   scipy.stats.norm.cdf(gaussian_table[-1]), 1.0,
+                                   power=power_upper)
+
+        y[i] = scipy.stats.norm.ppf(icdf)
+    return y
+
+
+def backward_interpolation(y: Vector, raw_table: Vector, gaussian_table: Vector, minval: float, maxval: float,
+                          lower_extrapolation_mode: Optional[str]=None, lower_extrapolation_param: Optional[float]=1.0,
+                          upper_extrapolation_mode: Optional[str]=None, upper_extrapolation_param: Optional[float]=1.0
+                         ) -> Vector:
+    if minval >= raw_table[0]:
+        raise ValueError("Minimum value %f should be lower than actual minimum of the raw table %f"%(minval, raw_table[0]))
+
+    if maxval < raw_table[-1]:
+        raise ValueError("Maximum value %f should be greater than actual maximum of the raw table %f"%(maxval, raw_table[-1]))
+
+    if lower_extrapolation_mode is None or lower_extrapolation_mode == "linear":
+        power_lower = 1.0
+    elif lower_extrapolation_mode == "power":
+        if lower_extrapolation_param is None or lower_extrapolation_param == 0.0:
+            raise ValueError("Lower tail extrapolation param must be not zero real number")
+        power_lower = 1.0 / lower_extrapolation_param
+    elif lower_extrapolation_mode != "truncate":
+        raise ValueError("Invalid lower tail extrapolation mode [%s]"%lower_extrapolation_mode)
+
+    if upper_extrapolation_mode is None or upper_extrapolation_mode == "linear":
+        power_upper = 1.0
+    elif upper_extrapolation_mode == "power":
+        if upper_extrapolation_param is None or upper_extrapolation_param == 0.0:
+            raise ValueError("Upper tail extrapolation param must be not zero real number")
+        power_upper = 1.0 / upper_extrapolation_param
+    elif upper_extrapolation_mode == "truncate":
+        pass
+    elif upper_extrapolation_mode == "hyperbolic":
+        factor_upper = (raw_table[-1]**upper_extrapolation_param)*(1.0-scipy.stats.norm.cdf(gaussian_table[-1]))
+        power_upper = 1.0 / upper_extrapolation_param
+    else:
+        raise ValueError("Invalid upper tail extrapolation mode [%s]"%upper_extrapolation_mode)
+
+    y = np.asarray(y)
+
+    # note that numpy will truncate in extrapolation case
+    x = np.interp(y, gaussian_table, raw_table)
+
+    # quick return
+    if lower_extrapolation_mode == "truncate" and upper_extrapolation_mode == "truncate":
+        return x  # interp will truncate the extremes 
+
+
+    # check for lower tail
+    indices = np.where(y < gaussian_table[0])[0]
+    for i in indices:
+        x[i] = power_interpolation(
+                    scipy.stats.norm.cdf(y[i]),
+                    0.0, scipy.stats.norm.cdf(gaussian_table[0]),
+                    minval, raw_table[0],
+                    power=power_lower
+                )
+
+    # check for upper tail
+    indices = np.where(y > gaussian_table[-1])[0]
+    for i in indices:
+        if upper_extrapolation_mode == "hyperbolic":
+            x[i] = (factor_upper/(1.0 - scipy.stats.norm.cdf(y[i])))**power_upper
+        else:
+            x[i] = power_interpolation(
+                        scipy.stats.norm.cdf(y[i]),
+                        scipy.stats.norm.cdf(gaussian_table[-1]), 1.0,
+                        raw_table[-1], maxval,
+                        power=power_upper
+                    )
+
+    return x
