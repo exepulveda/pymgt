@@ -3,8 +3,8 @@
 </p>
 <p align="center">
 <img src="https://github.com/exepulveda/pymgt/workflows/Test/badge.svg" alt="Test">
+<img src="https://img.shields.io/codecov/c/github/exepulveda/pymgt?color=%2334D058" alt="Coverage">
 </p>
-
 # Python Multivariate Gaussian Transforms: pymgt
 
 An implementation of several useful multivariate Gaussian transforms (MGT)
