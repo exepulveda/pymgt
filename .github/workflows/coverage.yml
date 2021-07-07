@@ -24,7 +24,7 @@ jobs:
     - name: Coverage
       run: |
         python -m pip install coverage
-        coverage run -m pytest
+        coverage run --source pymgt -m pytest
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v1
       with:
