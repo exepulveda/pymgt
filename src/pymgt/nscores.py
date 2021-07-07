@@ -2,7 +2,7 @@
 """
 import pytest
 
-from typing import Union, Type, Optional, List, Tuple
+from typing import Union, Type, Optional, List, Tuple, Dict
 
 import numpy as np
 import scipy.stats
@@ -167,9 +167,10 @@ def univariate_nscore(x: Vector,
 
 class UnivariateGaussianState(AbstractState):
     """The state of UnivariateGaussianTransform"""
-    def __init__(self, raw_table, gaussian_table):
+    def __init__(self, raw_table: Vector, gaussian_table: Vector, params: Dict):
         self.raw_table = raw_table
         self.gaussian_table = gaussian_table
+        self.params = params
 
 
 class UnivariateGaussianTransform(Transform):
@@ -230,10 +231,28 @@ class UnivariateGaussianTransform(Transform):
 
         self._minval = kargs.get("minval", None)
         self._maxval = kargs.get("maxval", None)
-        self._lextra_mode=kargs.get("lower_extrapolation_mode", "linear"),
-        self._lextra_param=kargs.get("lower_extrapolation_param", None),
-        self._uextra_mode=kargs.get("upper_extrapolation_mode", "linear"),
+        self._lextra_mode=kargs.get("lower_extrapolation_mode", "linear")
+        self._lextra_param=kargs.get("lower_extrapolation_param", None)
+        self._uextra_mode=kargs.get("upper_extrapolation_mode", "linear")
         self._uextra_param=kargs.get("upper_extrapolation_param", None)
+
+    def __get_params__(self) -> Dict:
+        return {
+            "minval": self._minval,
+            "maxval": self._maxval,
+            "lower_extrapolation_mode": self._lextra_mode,
+            "lower_extrapolation_param": self._lextra_param,
+            "upper_extrapolation_mode": self._uextra_mode,
+            "upper_extrapolation_param": self._uextra_param,
+        }
+
+    def __set_params__(self, params: Dict):
+        self._minval = params["minval"]
+        self._maxval = params["maxval"]
+        self._lextra_mode = params["lower_extrapolation_mode"]
+        self._lextra_param = params["lower_extrapolation_param"]
+        self._uextra_mode = params["upper_extrapolation_mode"]
+        self._uextra_param = params["upper_extrapolation_param"]
 
     def fit_transform(self, x, weights=None, gaussian_table=None):
         x = np.asarray(x)
@@ -254,7 +273,7 @@ class UnivariateGaussianTransform(Transform):
 
         # update state
         raw_table, gaussian_table, _ = transform_table
-        self.state = UnivariateGaussianState(raw_table, gaussian_table)
+        self.state = UnivariateGaussianState(raw_table, gaussian_table, self.__get_params__())
 
         return y
 
@@ -264,6 +283,8 @@ class UnivariateGaussianTransform(Transform):
     def transform(self, x: Array2D) -> Array2D:
         x = np.asarray(x)
         assert len(x.shape) == 1
+
+        self.__set_params__(self.state.params)
 
         # interpolation from original space to Gaussian space
         y = forward_interpolation(
@@ -282,6 +303,8 @@ class UnivariateGaussianTransform(Transform):
     def inverse_transform(self, y: Array2D) -> Array2D:
         y = np.asarray(y)
         assert len(y.shape) == 1
+
+        self.__set_params__(self.state.params)
 
         # interpolation from Gaussian space to original space
         x = backward_interpolation(

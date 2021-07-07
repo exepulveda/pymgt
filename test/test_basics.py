@@ -48,38 +48,3 @@ def test_states():
 
     np.testing.assert_array_almost_equal(y, y2)
     np.testing.assert_array_almost_equal(x_back, x_back2)
-
-def test_marginalnormalscore():
-    decimals = 2
-    sample_size = 1000
-
-    for ndim in range(2, 10):
-        t = MarginalGaussianTransform(name='marginal_nscore', trace=True)
-        x = np.random.uniform(10.0, 20.0, size=(sample_size, ndim))
-
-        y, x_back = assert_reversibility(t, x)
-
-        for dim in range(ndim):
-            #plt.hist(x_back[:, dim], 39)
-            #plt.show()
-            assert_normality(y[:, dim])
-
-def test_states():
-    sample_size = 1000
-    ndim = 4
-
-    t = MarginalGaussianTransform(name='marginal_nscore', trace=True)
-    x = np.random.uniform(10.0, 20.0, size=(sample_size, ndim))
-
-    y, x_back = assert_reversibility(t, x)
-
-    state = t.state
-
-    # build new object
-    t = MarginalGaussianTransform(name='marginal_nscore', trace=True)
-    t.state = state
-    y2 = t.transform(x)
-    x_back2 = t.inverse_transform(y2)
-
-    np.testing.assert_array_almost_equal(y, y2)
-    np.testing.assert_array_almost_equal(x_back, x_back2)

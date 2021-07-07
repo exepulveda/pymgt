@@ -169,12 +169,6 @@ def test_forward_interpolation():
     gaussian_table = np.array([-2.0, -1.0, 0.0, 1.0, 2.0])
 
     # assertions
-    # minval
-    with pytest.raises(ValueError):
-        y = forward_interpolation([15.0], raw_table, gaussian_table, 40.0, 70.0)
-    # maxval
-    with pytest.raises(ValueError):
-        y = forward_interpolation([15.0], raw_table, gaussian_table, 0.0, 45.0)
     # extrapolation_mode
     with pytest.raises(ValueError):
         y = forward_interpolation([15.0], raw_table, gaussian_table, 0.0, 70.0,
@@ -201,7 +195,7 @@ def test_forward_interpolation():
     lower_extrapolation_mode = "linear"
     lower_extrapolation_param = None
 
-    # linear interpolation of 5.0 using
+    # linear extrapolation of 5.0 using
     # (0.0, 10.0) and (0.0, ppf(-2.0)) -> -2.2776
     y = forward_interpolation([5.0], raw_table, gaussian_table, minval, maxval,
                           lower_extrapolation_mode, lower_extrapolation_param)
@@ -209,7 +203,7 @@ def test_forward_interpolation():
     assert 0 <= scipy.stats.norm.cdf(y[0]) <= 1.0
     np.testing.assert_almost_equal(y, -2.2776048388094594)
 
-    # linear interpolation of 60.0 using   
+    # linear extrapolation of 60.0 using   
     # (50.0, 70.0) and (ppf(2.0), 1.0) -> 2.2776
     minval = 0.0
     maxval = 70.0
@@ -222,7 +216,7 @@ def test_forward_interpolation():
     assert 0 <= scipy.stats.norm.cdf(y[0]) <= 1.0
     np.testing.assert_almost_equal(y, 2.27760484)
 
-    # linear interpolation (but using power 1.0) of [5.0, 60.0] using
+    # linear extrapolation (but using power 1.0) of [5.0, 60.0] using
     minval = 0.0
     maxval = 70.0
     lower_extrapolation_mode = "power"
@@ -242,20 +236,14 @@ def test_backward_interpolation():
     gaussian_table = np.array([-2.0, -1.0, 0.0, 1.0, 2.0])
 
     # assertions
-    # minval
-    with pytest.raises(ValueError):
-        x = backward_interpolation([-1.5], raw_table, gaussian_table, 40.0, 70.0)
-    # maxval
-    with pytest.raises(ValueError):
-        x = backward_interpolation([-1.5], raw_table, gaussian_table, 0, 35.0)
     # extrapolation_mode
     with pytest.raises(ValueError):
         x = backward_interpolation([-1.5], raw_table, gaussian_table, 0.0, 60.0,
-                                  lower_extrapolation_mode="unkown")
+                                  lower_extrapolation_mode="unknown")
     # extrapolation_mode
     with pytest.raises(ValueError):
         x = backward_interpolation([-1.5], raw_table, gaussian_table, 0.0, 60.0,
-                                  upper_extrapolation_mode="unkown")
+                                  upper_extrapolation_mode="unknown")
 
     # linear interpolation working
     minval = 0.0
