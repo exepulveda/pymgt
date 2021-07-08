@@ -170,8 +170,3 @@ class Transform(AbstractTransform):
         x = np.asarray(x)
         _ = self.fit_transform(x)
 
-    def to_hdf5(self, h5fd, h5group="/"):
-        pass
-
-    def from_hdf5(self, h5fd, h5group="/"):
-        pass

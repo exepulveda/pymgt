@@ -320,14 +320,6 @@ class UnivariateGaussianTransform(Transform):
 
         return x
 
-    def to_hdf5(self, h5d):
-        h5d.create_dataset("raw_table", data=self.state.raw_table)
-        h5d.create_dataset("gaussian_table", data=self.state.gaussian_table)
-
-    def from_hdf5(self, h5d):
-        self.state.raw_table = np.array(h5d["raw_table"])
-        self.state.gaussian_table = np.array(h5d["gaussian_table"])
-
 
 class MarginalGaussianState(AbstractState):
     """The state of a MarginalGaussianTransform

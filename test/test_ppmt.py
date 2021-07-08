@@ -72,7 +72,12 @@ def test_ppmt_de():
     
     print(f"target for ({ndata},{ndim})={target}")        
 
-    t = PPMTransform(maxiter=maxiters, target=target, optimiser="de")
+    t = PPMTransform(name="ppmt", maxiter=maxiters, target=target, optimiser="de", metrics=DEFAULT_METRICS)
+
+    assert t.name == "ppmt"
+
+    t.name = "ppmt 2d uniform"
+    assert t.name == "ppmt 2d uniform"
 
     y, x_back = assert_reversibility(t, x)        
 
