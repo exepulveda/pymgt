@@ -17,7 +17,6 @@ from .ppmt_utils import find_next_best_direction
 from .metrics import FRIEDMAN_METRIC
 
 from typing import List
-from .nscores import UnivariateGaussianState
 from .nscores import MarginalGaussianState
 from .sphering import SpheringState
 from .interface import Vector

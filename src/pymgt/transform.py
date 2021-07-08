@@ -4,7 +4,7 @@ from abc import abstractmethod
 import numpy as np
 
 from .interface import AbstractTransform, MetricType
-from .utils import uniform_on_surface
+from .tindex import uniform_on_surface
 
 
 class MDMetric:

@@ -20,8 +20,7 @@ from .tindex import jarque_bera_index
 from .tindex import shapiro_index
 from .tindex import anderson_index
 from .tindex import ks_index
+from .tindex import mv_index_distribution
 
 from .metrics import Metric, DEFAULT_METRICS
 from .metrics import FRIEDMAN_METRIC, KS_METRIC, ANDERSON_METRIC, SHAPIRO_METRIC
-
-from .utils import mv_index_distribution

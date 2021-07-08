@@ -4,6 +4,8 @@ This module implements/define several indices for departure from Gaussianity
 import scipy.stats
 import numpy as np
 
+from scipy.stats import multivariate_normal
+
 from typing import Callable, Optional
 from .interface import Array2D
 from .interface import Vector
@@ -22,6 +24,34 @@ def generate_directions(dim: int, n: int = 100) -> Array2D:
         v[i, :] /= np.linalg.norm(v[i, :])
 
     return v
+
+def uniform_on_surface(ndim, size):
+    """Generate `size` uniform directions of dimension `ndim`
+    """
+    x = np.random.normal(size=(size, ndim))
+    x /= np.linalg.norm(x, axis=1)[:, np.newaxis]
+    return x
+
+def mv_index_distribution(ndata, ndim, pi_func, ndir=100):
+    """Calculate the projection index `pi_func` for samples from
+    a standard multivariate Gaussian distribution with unit covariance
+    of size (`ndata`,`ndim`) for
+    `ndir` directions at random
+    """
+    # generate random directions
+    directions = uniform_on_surface(ndim, ndir)
+    ret = []
+    x = multivariate_normal.rvs(
+            mean=np.zeros(ndim),
+            cov=np.eye(ndim),
+            size=ndata)
+    for i in range(ndir):
+        # project
+        p = x@directions[i, :]
+        pi = pi_func(p)
+        ret += [pi]
+
+    return ret
 
 
 def projection_index(x: Array2D,

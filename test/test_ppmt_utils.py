@@ -62,3 +62,22 @@ def test_next_direction():
     np.testing.assert_almost_equal(np.abs(best_direction[0]), 1.0, decimal=2)
     np.testing.assert_almost_equal(np.abs(best_direction[1]), 0.0, decimal=2)
     assert best_pi >= 4.0
+
+def test_legendre_poly_deriv():
+    ndata = 1000
+    degree = 10
+
+    np.random.seed(1)
+    x = np.empty((ndata, 2))
+    x[:, 0] = np.random.uniform(-4.0, 4.0, size=ndata)
+    x[:, 1] = np.random.normal(size=ndata)
+
+    direction = np.array([1.0, 0.0])
+    pi, gradient = legendre_poly_deriv(x, direction=direction, degree=degree)
+    np.testing.assert_array_almost_equal(gradient, [0.0, 0.12311593], decimal=3)
+    assert 4.0 <= pi <= 5.0 # pi of uniform distributed data
+
+    direction = np.array([0.0, 1.0])
+    pi, gradient = legendre_poly_deriv(x, direction=direction, degree=degree)
+    np.testing.assert_array_almost_equal(gradient, [-0.08250129, 0.0], decimal=3)
+    assert 0.0 <= pi <= 0.01 # pi of normal distributed data
