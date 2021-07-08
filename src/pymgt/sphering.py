@@ -103,14 +103,3 @@ class SpheringTransform(Transform):
             return Xc + muhat
 
         return Xc
-
-    def to_hdf5(self, h5d):
-        S, xhat = self._state
-
-        h5d.create_dataset("S", data=S)
-        h5d.create_dataset("xhat", data=xhat)
-
-    def from_hdf5(self, h5d):
-        S = np.array(h5d["S"])
-        xhat = np.array(h5d["xhat"])
-        self._state = (S, xhat)

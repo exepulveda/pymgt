@@ -34,3 +34,31 @@ def test_pi():
 
         assert pi > 0.2
 
+def test_next_direction():
+    ndata = 1000
+    degree = 10
+    maxiter = 100
+    trace = True
+    step = 0.01    
+
+    np.random.seed(1)
+    x = np.empty((ndata, 2))
+    x[:, 0] = np.random.uniform(-4.0, 4.0, size=ndata)
+    x[:, 1] = np.random.normal(size=ndata)
+
+    best_direction, best_pi = find_next_best_direction_gd(x, degree=degree, maxiter=maxiter, trace=trace, step=step)
+    assert len(best_direction) == 2
+    np.testing.assert_almost_equal(np.linalg.norm(best_direction), 1.0)
+    np.testing.assert_almost_equal(np.abs(best_direction[0]), 1.0, decimal=2)
+    np.testing.assert_almost_equal(np.abs(best_direction[1]), 0.0, decimal=2)
+    assert best_pi >= 4.0
+
+    popsize = 50
+    is_maximising_better = True
+    index_func = friedman_index
+    best_direction, best_pi = find_next_best_direction(x, index_func, is_maximising_better=is_maximising_better, maxiter=maxiter, trace=trace, popsize=popsize)
+    assert len(best_direction) == 2
+    np.testing.assert_almost_equal(np.linalg.norm(best_direction), 1.0)
+    np.testing.assert_almost_equal(np.abs(best_direction[0]), 1.0, decimal=2)
+    np.testing.assert_almost_equal(np.abs(best_direction[1]), 0.0, decimal=2)
+    assert best_pi >= 4.0
