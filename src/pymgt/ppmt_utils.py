@@ -139,18 +139,15 @@ def legendre_poly_deriv(data, direction, degree=10):
     return pi, gradient
 
 
-def find_next_best_direction_gd(x, degree=10, maxiter=100, trace=False, step=0.01):
+def find_next_best_direction_gd(x, degree=10, maxiter=100, step=0.01):
     """Find the next best direction by gradient descent
     """
     _, ndim = x.shape
 
     # first calculate the index to marginals
-    if trace: print("calculate the index to marginals")
     best_pi = friedman_index(x[:, 0], degree=degree)
     best_direction = np.zeros(ndim)
     best_direction[0] = 1.0
-
-    if trace: print("new best_direction: 0", best_pi, best_direction)
 
     for i in range(1, ndim):
         pi = friedman_index(x[:, i], degree=degree)
@@ -158,12 +155,6 @@ def find_next_best_direction_gd(x, degree=10, maxiter=100, trace=False, step=0.0
             best_pi = pi
             best_direction.fill(0.0)
             best_direction[i] = 1.0
-            if trace: print("new best_direction:", i, best_pi, best_direction, np.linalg.norm(best_direction))
-
-    if trace:
-        print("=======")
-        print("Stage 2")
-        print("=======")
 
     # rough optimisation
     e = np.zeros(ndim)
@@ -200,21 +191,9 @@ def find_next_best_direction_gd(x, degree=10, maxiter=100, trace=False, step=0.0
                 best_direction = c1*(best_direction+s*e)/np.sqrt(1+s*best_direction[i])
                 pi_val = friedman_index(x@best_direction)
                 best_pi = f
-                if trace:
-                    print("best_direction:", best_direction, np.linalg.norm(best_direction))
-                    print("best_pi:", best_pi)
-                    print("pi_val:", pi_val)
 
         if np.abs(pi - best_pi) < 1e-10: 
-            if trace: print("Not more improvement")
             break
-
-    if trace:        
-        print("=======")
-        print("Stage 3")
-        print("=======")
-
-        print("best_direction:", best_direction, np.linalg.norm(best_direction))
 
     # gradient decend
     alpha = step
@@ -229,21 +208,11 @@ def find_next_best_direction_gd(x, degree=10, maxiter=100, trace=False, step=0.0
 
         new_pi = friedman_index(x@new_direction)
 
-        if trace: 
-            print("at:", i, pi, new_pi, best_pi) #, new_direction, gradient)
-
         if new_pi > best_pi:
             best_pi = new_pi
             best_direction = new_direction
             direction = np.copy(new_direction)
-            #if trace: print("new best:: ", best_pi, " dir:: ", best_direction, np.linalg.norm(best_direction))
-        elif np.abs(new_pi - best_pi) < 1e-10:
-            if trace:
-                print("Not more improvement")
-            break
         else:
-            if trace:
-                print("Not more improvement")
             break
 
     best_direction /= np.linalg.norm(best_direction)

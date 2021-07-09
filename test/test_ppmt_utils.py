@@ -46,11 +46,23 @@ def test_next_direction():
     x[:, 0] = np.random.uniform(-4.0, 4.0, size=ndata)
     x[:, 1] = np.random.normal(size=ndata)
 
-    best_direction, best_pi = find_next_best_direction_gd(x, degree=degree, maxiter=maxiter, trace=trace, step=step)
+    best_direction, best_pi = find_next_best_direction_gd(x, degree=degree, maxiter=maxiter, step=step)
     assert len(best_direction) == 2
     np.testing.assert_almost_equal(np.linalg.norm(best_direction), 1.0)
     np.testing.assert_almost_equal(np.abs(best_direction[0]), 1.0, decimal=2)
     np.testing.assert_almost_equal(np.abs(best_direction[1]), 0.0, decimal=2)
+    assert best_pi >= 4.0
+
+    np.random.seed(1)
+    x = np.empty((ndata, 2))
+    x[:, 1] = np.random.uniform(-4.0, 4.0, size=ndata)
+    x[:, 0] = np.random.normal(size=ndata)
+
+    best_direction, best_pi = find_next_best_direction_gd(x, degree=degree, maxiter=maxiter, step=step)
+    assert len(best_direction) == 2
+    np.testing.assert_almost_equal(np.linalg.norm(best_direction), 1.0)
+    np.testing.assert_almost_equal(np.abs(best_direction[0]), 0.0, decimal=2)
+    np.testing.assert_almost_equal(np.abs(best_direction[1]), 1.0, decimal=2)
     assert best_pi >= 4.0
 
     popsize = 50
@@ -59,8 +71,8 @@ def test_next_direction():
     best_direction, best_pi = find_next_best_direction(x, index_func, is_maximising_better=is_maximising_better, maxiter=maxiter, trace=trace, popsize=popsize)
     assert len(best_direction) == 2
     np.testing.assert_almost_equal(np.linalg.norm(best_direction), 1.0)
-    np.testing.assert_almost_equal(np.abs(best_direction[0]), 1.0, decimal=2)
-    np.testing.assert_almost_equal(np.abs(best_direction[1]), 0.0, decimal=2)
+    np.testing.assert_almost_equal(np.abs(best_direction[0]), 0.0, decimal=2)
+    np.testing.assert_almost_equal(np.abs(best_direction[1]), 1.0, decimal=2)
     assert best_pi >= 4.0
 
 def test_legendre_poly_deriv():

@@ -223,7 +223,7 @@ class PPMTransform(Transform):
 
         # find the best next direction
         if self._opt == "original":
-            direction, pi = find_next_best_direction_gd(x, trace=trace) #, friedman_index)
+            direction, pi = find_next_best_direction_gd(x) #, friedman_index)
         else:
             direction, pi = find_next_best_direction(x, friedman_index)
 
